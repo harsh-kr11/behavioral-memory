@@ -6,7 +6,7 @@ of validated execution traces to guide LLM tool orchestration during inference.
 Quick start:
     from behavioral_memory import TraceStore, PlanEngine, GatekeeperPipeline
 
-See https://github.com/SteveGates11/behavioral-memory for full documentation.
+See https://github.com/harsh-kr11/behavioral-memory for full documentation.
 """
 
 from behavioral_memory.core.config import Settings

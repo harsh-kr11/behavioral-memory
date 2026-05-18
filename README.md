@@ -4,7 +4,7 @@
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue)](https://www.python.org)
-[![CI](https://github.com/SteveGates11/behavioral-memory/actions/workflows/ci.yml/badge.svg)](https://github.com/SteveGates11/behavioral-memory/actions/workflows/ci.yml)
+[![CI](https://github.com/harsh-kr11/behavioral-memory/actions/workflows/ci.yml/badge.svg)](https://github.com/harsh-kr11/behavioral-memory/actions/workflows/ci.yml)
 
 A retrieval-based framework that uses a memory bank of validated execution traces to guide LLM tool orchestration during inference. Instead of relying on static few-shot examples, the system dynamically retrieves semantically similar, validated traces from past successful executions — giving your agent **institutional memory** that improves with every interaction.
 
@@ -18,8 +18,9 @@ On a 30-task benchmark with 7 MCP tools:
 
 | Metric | Zero-Shot | Static Few-Shot | **Proposed** |
 |--------|-----------|----------------|-------------|
-| Plan Correctness (PCR) | 33.3% | 50.0% | **63.3%** |
 | Tool Selection (TSA) | 63.3% | 70.0% | **83.3%** |
+| Parameter Validity (PV) | 72.2% | 79.6% | **84.0%** |
+| Plan Correctness (PCR) | 33.3% | 50.0% | **63.3%** |
 | Sequence Accuracy (ESA) | 63.3% | 70.0% | **83.3%** |
 
 McNemar's test: **p = 0.004** vs zero-shot.
@@ -95,7 +96,7 @@ plan = engine.generate(query="Get revenue data and email a report")
 Clone the repo and run the complete system:
 
 ```bash
-git clone https://github.com/SteveGates11/behavioral-memory.git
+git clone https://github.com/harsh-kr11/behavioral-memory.git
 cd behavioral-memory
 pip install -e ".[agent]"
 

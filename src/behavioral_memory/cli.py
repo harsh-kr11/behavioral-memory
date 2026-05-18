@@ -214,7 +214,7 @@ def _print_paper_results_table() -> None:
     table.add_column("Dynamic Retrieval", justify="right", style="bold green")
 
     table.add_row("Tool Selection (TSA)", "63.3%", "70.0%", "83.3%")
-    table.add_row("Parameter Validity (PV)", "74.7%", "81.1%", "88.3%")
+    table.add_row("Parameter Validity (PV)", "72.2%", "79.6%", "84.0%")
     table.add_row("Plan Correctness (PCR)", "33.3%", "50.0%", "63.3%")
     table.add_row("Sequence Accuracy (ESA)", "63.3%", "70.0%", "83.3%")
     table.add_row("McNemar p-value vs ZS", "—", "—", "p = 0.004")
