@@ -1,13 +1,17 @@
 """CLI for the behavioral-memory framework.
 
-Provides commands for running benchmarks, managing memory, and
-operating the reference agent.
+Provides commands for running benchmarks, managing memory, setup,
+and the offline demo that shows behavioral memory impact.
 """
 
 from __future__ import annotations
 
+import shutil
+from pathlib import Path
+
 import typer
 from rich.console import Console
+from rich.panel import Panel
 from rich.table import Table
 
 app = typer.Typer(
@@ -17,7 +21,6 @@ app = typer.Typer(
 )
 console = Console()
 
-# --- Sub-commands ---
 memory_app = typer.Typer(help="Manage the behavioral memory store")
 benchmark_app = typer.Typer(help="Run evaluation benchmarks")
 app.add_typer(memory_app, name="memory")
@@ -30,6 +33,196 @@ def version() -> None:
     from behavioral_memory import __version__
 
     console.print(f"behavioral-memory v{__version__}")
+
+
+@app.command()
+def setup() -> None:
+    """Interactive setup: create .env file from template."""
+    env_path = Path(".env")
+    template_path = Path(".env.example")
+
+    if env_path.exists():
+        overwrite = typer.confirm(".env already exists. Overwrite?", default=False)
+        if not overwrite:
+            console.print("[dim]Keeping existing .env[/dim]")
+            return
+
+    if not template_path.exists():
+        console.print("[red]Error: .env.example not found. Are you in the project root?[/red]")
+        raise typer.Exit(1)
+
+    shutil.copy(template_path, env_path)
+    console.print("[green]Created .env from .env.example[/green]\n")
+
+    console.print(Panel.fit(
+        "[bold]Configure your .env file:[/bold]\n\n"
+        "1. [cyan]GOOGLE_API_KEY[/cyan] — get one at https://aistudio.google.com/apikey\n"
+        "   Only needed to run the reference agent with Gemini.\n"
+        "   You can use any LangChain-compatible LLM instead.\n\n"
+        "2. [cyan]VECTOR_STORE_URL[/cyan] — PostgreSQL + pgvector connection string\n"
+        "   For local dev: docker run -p 5432:5432 -e POSTGRES_PASSWORD=pw pgvector/pgvector\n"
+        "   [dim]Not needed for demo mode or tests.[/dim]\n\n"
+        "3. [cyan]LANGFUSE_SECRET_KEY / LANGFUSE_PUBLIC_KEY[/cyan] — from https://cloud.langfuse.com\n"
+        "   Free tier available. Enables the feedback loop.\n"
+        "   [dim]Optional — the framework works without Langfuse.[/dim]",
+        title="Setup Guide",
+    ))
+
+
+@app.command()
+def demo(
+    task_id: int = typer.Option(-1, help="Run a specific task ID (0-29), or -1 for a curated set"),
+    verbose: bool = typer.Option(False, "--verbose", "-v", help="Show full plan details"),
+) -> None:
+    """Run the offline demo showing behavioral memory impact.
+
+    Compares zero-shot vs dynamic retrieval on benchmark tasks
+    WITHOUT needing PostgreSQL, Langfuse, or an LLM API key.
+    Uses the gold tool chains to simulate perfect retrieval.
+    """
+
+    from behavioral_memory.core.schemas import ExecutionTrace, ToolCall
+    from behavioral_memory.evaluation.ground_truth import EVALUATION_TASKS
+    from behavioral_memory.evaluation.metrics import compute_metrics
+    from behavioral_memory.evaluation.seed_traces import get_seed_traces
+    from behavioral_memory.gatekeeper.sandbox import SandboxExecutor
+    from behavioral_memory.gatekeeper.schema_validator import SchemaValidator
+    from behavioral_memory.planner.prompt import build_prompt
+    from behavioral_memory.tools.mock_tools import get_tool_schemas
+    from behavioral_memory.tools.registry import ToolRegistry
+
+    console.print(Panel.fit(
+        "[bold]Behavioral Memory — Offline Demo[/bold]\n\n"
+        "This demo shows how behavioral memory (validated execution traces)\n"
+        "improves tool orchestration quality. No external services needed.\n\n"
+        "It simulates: zero-shot (no memory) vs dynamic retrieval (with memory)\n"
+        "on the paper's 30-task benchmark with 7 MCP tools.",
+        title="Demo Mode",
+    ))
+
+    schemas = get_tool_schemas()
+    registry = ToolRegistry()
+    registry.register_many(schemas)
+    seed_traces = get_seed_traces()
+    validator = SchemaValidator(registry)
+    sandbox = SandboxExecutor()
+
+    if task_id >= 0:
+        selected = [t for t in EVALUATION_TASKS if t["task_id"] == task_id]
+        if not selected:
+            console.print(f"[red]Task ID {task_id} not found (valid: 0-29)[/red]")
+            raise typer.Exit(1)
+    else:
+        selected = [
+            EVALUATION_TASKS[0],   # simple
+            EVALUATION_TASKS[10],  # moderate
+            EVALUATION_TASKS[20],  # challenging
+        ]
+
+    console.print(f"\n[dim]Seed traces loaded: {len(seed_traces)}[/dim]")
+    console.print(f"[dim]Tools available: {len(schemas)}[/dim]")
+    console.print(f"[dim]Tasks to run: {len(selected)}[/dim]\n")
+
+    for task in selected:
+        console.print(f"\n{'═' * 80}")
+        console.print(f"[bold cyan]Task {task['task_id']}[/bold cyan] ({task['difficulty']})")
+        console.print(f"  {task['task']}\n")
+
+        gold = task["gold_tool_chain"]
+
+        # --- Zero-shot: no memory, model only sees schemas ---
+        zs_prompt = build_prompt(query=task["task"], traces=[], tool_schemas=schemas)
+        console.print("[yellow]  ZERO-SHOT (no behavioral memory)[/yellow]")
+        console.print(f"  [dim]Prompt size: {len(zs_prompt)} chars, 0 reference examples[/dim]")
+        console.print("  [dim]Without memory, the LLM must guess conventions from schemas alone.[/dim]")
+        console.print("  [dim]Example failure: may use total_amount instead of quantity*unit_price for 'revenue'[/dim]")
+
+        # --- Dynamic retrieval: with memory ---
+        relevant = _find_relevant_traces(task["task"], seed_traces, top_k=3)
+        dr_prompt = build_prompt(query=task["task"], traces=relevant, tool_schemas=schemas)
+        console.print("\n[green]  DYNAMIC RETRIEVAL (with behavioral memory)[/green]")
+        console.print(f"  [dim]Prompt size: {len(dr_prompt)} chars, {len(relevant)} reference examples[/dim]")
+        for i, trace in enumerate(relevant):
+            console.print(f"    [dim]Retrieved #{i+1}: \"{trace.task_description[:60]}\"[/dim]")
+
+        # --- Gold chain validation ---
+        trace_obj = ExecutionTrace(
+            task_description=task["task"],
+            tool_chain=[
+                ToolCall(step_id=s["step_id"], tool_name=s["tool"], parameters=s.get("params", {}))
+                for s in gold
+            ],
+            source="execution",
+        )
+        is_valid, _ = validator.validate(trace_obj)
+        passed, _ = sandbox.execute(trace_obj)
+
+        metrics = compute_metrics(gold, gold)
+
+        console.print(f"\n  [bold]Gold tool chain ({len(gold)} steps):[/bold]")
+        for step in gold:
+            console.print(f"    {step['step_id']}: [cyan]{step['tool']}[/cyan]")
+            if verbose and step.get("params"):
+                for k, v in step["params"].items():
+                    val_str = str(v)[:80]
+                    console.print(f"      {k}: {val_str}")
+
+        console.print(f"\n  Gatekeeper: schema={'✓' if is_valid else '✗'}  sandbox={'✓' if passed else '✗'}")
+        console.print(f"  Metrics:    TSA={'✓' if metrics['tsa'] else '✗'}  PV={metrics['pv']:.0%}  PCR={'✓' if metrics['pcr'] else '✗'}  ESA={'✓' if metrics['esa'] else '✗'}")
+
+    # --- Summary table ---
+    console.print(f"\n{'═' * 80}")
+    _print_paper_results_table()
+
+    console.print(Panel.fit(
+        "[bold]Key Insight:[/bold] Without behavioral memory, the LLM has no way to learn\n"
+        "domain conventions (e.g., 'revenue' = quantity*unit_price, not total_amount).\n"
+        "With memory, validated traces teach these conventions dynamically.\n\n"
+        "[bold]To run with a real LLM:[/bold]\n"
+        "  1. Set GOOGLE_API_KEY in .env (or use any LangChain model)\n"
+        "  2. Start PostgreSQL: docker run -p 5432:5432 pgvector/pgvector\n"
+        "  3. Run: python examples/run_benchmark.py\n\n"
+        "[bold]To enable Langfuse tracing:[/bold]\n"
+        "  1. Sign up at https://cloud.langfuse.com (free)\n"
+        "  2. Add LANGFUSE_SECRET_KEY and LANGFUSE_PUBLIC_KEY to .env\n"
+        "  3. Every plan will be logged — SMEs can score them in the Langfuse UI\n"
+        "  4. Positively scored traces auto-enter behavioral memory via FeedbackPoller",
+        title="Next Steps",
+    ))
+
+
+def _find_relevant_traces(
+    query: str, traces: list, top_k: int = 3
+) -> list:
+    """Simple keyword-based trace matching for demo mode (no embeddings needed)."""
+    query_lower = query.lower()
+    scored = []
+    for trace in traces:
+        task_lower = trace.task_description.lower()
+        overlap = sum(1 for word in query_lower.split() if word in task_lower)
+        scored.append((overlap, trace))
+    scored.sort(key=lambda x: x[0], reverse=True)
+    return [trace for _, trace in scored[:top_k]]
+
+
+def _print_paper_results_table() -> None:
+    """Print the paper's published results for reference."""
+    table = Table(title="Paper Results — 30-Task Benchmark (Gemini 2.5 Pro)")
+    table.add_column("Metric", style="bold")
+    table.add_column("Zero-Shot", justify="right")
+    table.add_column("Static Few-Shot", justify="right")
+    table.add_column("Dynamic Retrieval", justify="right", style="bold green")
+
+    table.add_row("Tool Selection (TSA)", "63.3%", "70.0%", "83.3%")
+    table.add_row("Parameter Validity (PV)", "74.7%", "81.1%", "88.3%")
+    table.add_row("Plan Correctness (PCR)", "33.3%", "50.0%", "63.3%")
+    table.add_row("Sequence Accuracy (ESA)", "63.3%", "70.0%", "83.3%")
+    table.add_row("McNemar p-value vs ZS", "—", "—", "p = 0.004")
+
+    console.print(table)
+
+
+# --- Memory commands ---
 
 
 @memory_app.command("count")
@@ -50,6 +243,9 @@ def memory_seed() -> None:
     traces = get_seed_traces()
     console.print(f"[green]Loaded {len(traces)} seed traces[/green]")
     console.print("[dim]To store them, connect to pgvector and use the Python API[/dim]")
+
+
+# --- Benchmark commands ---
 
 
 @benchmark_app.command("info")
