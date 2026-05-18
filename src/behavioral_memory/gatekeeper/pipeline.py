@@ -11,6 +11,7 @@ A trace must pass all three gates to be accepted into behavioral memory.
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from behavioral_memory.core.config import Settings
 from behavioral_memory.core.schemas import ExecutionTrace, GatekeeperResult
@@ -18,7 +19,6 @@ from behavioral_memory.gatekeeper.dedup_gate import DeduplicationGate
 from behavioral_memory.gatekeeper.sandbox import SandboxExecutor
 from behavioral_memory.gatekeeper.schema_validator import SchemaValidator
 from behavioral_memory.memory.dedup import Deduplicator
-from behavioral_memory.memory.store import TraceStore
 from behavioral_memory.tools.registry import ToolRegistry
 
 logger = logging.getLogger(__name__)
@@ -29,7 +29,7 @@ class GatekeeperPipeline:
 
     def __init__(
         self,
-        store: TraceStore,
+        store: Any,
         registry: ToolRegistry,
         settings: Settings | None = None,
     ) -> None:

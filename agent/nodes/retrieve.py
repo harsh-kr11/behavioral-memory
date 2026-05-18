@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from agent.state import AgentState
-from behavioral_memory.memory.store import TraceStore
 from behavioral_memory.memory.token_budget import select_traces_within_budget
 
 
-def make_retrieve_node(store: TraceStore):
+def make_retrieve_node(store: Any):
     """Factory that creates a retrieve_traces node bound to a TraceStore."""
 
     def retrieve_traces(state: AgentState) -> dict:

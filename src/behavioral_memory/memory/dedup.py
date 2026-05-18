@@ -9,10 +9,10 @@ similarity threshold of 0.95 (Section III.E.3).
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from behavioral_memory.core.config import Settings
 from behavioral_memory.core.schemas import ExecutionTrace
-from behavioral_memory.memory.store import TraceStore
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +22,7 @@ class Deduplicator:
 
     def __init__(
         self,
-        store: TraceStore,
+        store: Any,
         threshold: float | None = None,
         settings: Settings | None = None,
     ) -> None:
@@ -34,22 +34,16 @@ class Deduplicator:
         """Check if a trace is too similar to an existing one.
 
         Returns (is_duplicate, similarity_score).
+        Works with both TraceStore (PGVector) and InMemoryTraceStore.
         """
-        results = self._store.vectorstore.similarity_search_with_score(
-            trace.task_description, k=1
-        )
-        if not results:
-            return False, 0.0
-
-        doc, score = results[0]
+        score = self._store.similarity_score(trace.task_description)
         is_dup = score >= self.threshold
         if is_dup:
             logger.info(
-                "Duplicate detected (%.3f >= %.3f): '%s' ~ '%s'",
+                "Duplicate detected (%.3f >= %.3f): '%s'",
                 score,
                 self.threshold,
                 trace.task_description[:60],
-                doc.page_content[:60],
             )
         return is_dup, float(score)
 

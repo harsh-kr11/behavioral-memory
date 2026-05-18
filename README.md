@@ -12,9 +12,9 @@ Based on the IEEE paper: *"Behavioral Memory for Tool Orchestration: Semantic Re
 
 ---
 
-## Key Results
+## Key Results (from the paper)
 
-On a 30-task benchmark with 7 MCP tools:
+On a 30-task benchmark with 7 MCP tools, using Gemini 2.5 Pro:
 
 | Metric | Zero-Shot | Static Few-Shot | **Proposed** |
 |--------|-----------|----------------|-------------|
@@ -24,6 +24,45 @@ On a 30-task benchmark with 7 MCP tools:
 | Sequence Accuracy (ESA) | 63.3% | 70.0% | **83.3%** |
 
 McNemar's test: **p = 0.004** vs zero-shot.
+
+> **Note:** These numbers are from the published paper. To reproduce them yourself, see [Running the Real Benchmark](#running-the-real-benchmark) below.
+
+---
+
+## Quick Start
+
+### Option A: No API keys needed (validation + demo)
+
+```bash
+git clone https://github.com/harsh-kr11/behavioral-memory.git
+cd behavioral-memory
+pip install -e ".[agent,eval,dev]"
+
+# Validate the entire pipeline (30/30 checks, no external services)
+python examples/validate_pipeline.py
+
+# Quick demo showing behavioral memory impact
+behavioral-memory demo
+```
+
+### Option B: With a Google API key (real benchmark)
+
+```bash
+export GOOGLE_API_KEY=your-key-here
+python examples/run_live_benchmark.py               # all 30 tasks
+python examples/run_live_benchmark.py --limit 5      # quick test with 5 tasks
+python examples/run_live_benchmark.py --model gemini-2.0-flash  # cheaper model
+```
+
+### Option C: Interactive agent
+
+```bash
+export GOOGLE_API_KEY=your-key-here
+python -m agent.app --interactive
+
+# Or single query:
+python -m agent.app "Build a revenue analysis pipeline"
+```
 
 ---
 
@@ -35,7 +74,8 @@ User Query
     ▼
 ┌─────────────────────────────────────────────────────┐
 │  1. BEHAVIORAL LAYER                                │
-│     Retrieve top-k similar traces from pgvector     │
+│     Retrieve top-k similar traces from memory       │
+│     (pgvector or in-memory — your choice)           │
 │                                                     │
 │  2. TOOL LAYER                                      │
 │     Fetch available tool schemas via MCP             │
@@ -69,39 +109,127 @@ User Query
 
 ## Two Ways to Use
 
-### 1. Bring Your Own Agent (library)
+### 1. As a Library (Bring Your Own Agent)
 
-Install the framework and plug it into your existing agent:
+Install and plug into your existing agent:
 
 ```bash
 pip install behavioral-memory
 ```
 
 ```python
-from behavioral_memory import TraceStore, PlanEngine, ToolRegistry
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings  # or any provider
+from behavioral_memory import PlanEngine, ToolRegistry, InMemoryTraceStore
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 
 llm = ChatOpenAI(model="gpt-4o", temperature=0)
 embeddings = OpenAIEmbeddings()
 
-store = TraceStore(embeddings=embeddings, connection_url="postgresql+psycopg://...")
+# No PostgreSQL needed — InMemoryTraceStore works anywhere
+store = InMemoryTraceStore(embeddings=embeddings)
 registry = ToolRegistry()
 engine = PlanEngine(llm=llm, store=store, registry=registry)
 
 plan = engine.generate(query="Get revenue data and email a report")
 ```
 
-### 2. Run the Reference Agent (LangGraph 1.x)
+For production with PostgreSQL + pgvector:
 
-Clone the repo and run the complete system:
+```python
+from behavioral_memory import TraceStore
+
+store = TraceStore(embeddings=embeddings, connection_url="postgresql+psycopg://...")
+```
+
+### 2. Run the Reference Agent (LangGraph 1.x)
 
 ```bash
 git clone https://github.com/harsh-kr11/behavioral-memory.git
 cd behavioral-memory
 pip install -e ".[agent]"
 
+export GOOGLE_API_KEY=your-key
+
+# Interactive mode
+python -m agent.app --interactive
+
+# Single query
 python -m agent.app "Build a revenue analysis pipeline"
 ```
+
+The interactive agent supports:
+- `/compare <query>` — run with AND without memory, see the difference
+- `/memory` — inspect what's in behavioral memory
+- `/quit` — exit
+
+---
+
+## Running the Real Benchmark
+
+The benchmark sends 30 tasks through 3 strategies (zero-shot, static few-shot, dynamic retrieval), scoring each plan against gold tool chains.
+
+### Prerequisites
+
+Only a Google API key. No PostgreSQL required — the benchmark uses `InMemoryTraceStore`.
+
+```bash
+pip install -e ".[agent,eval]"
+export GOOGLE_API_KEY=your-key-here
+```
+
+### Run
+
+```bash
+# Full benchmark (30 tasks × 3 strategies = 90 LLM calls)
+python examples/run_live_benchmark.py
+
+# Quick test (5 tasks × 3 strategies = 15 LLM calls)
+python examples/run_live_benchmark.py --limit 5
+
+# Use a cheaper/faster model
+python examples/run_live_benchmark.py --model gemini-2.0-flash
+
+# With Langfuse logging
+export LANGFUSE_SECRET_KEY=sk-lf-...
+export LANGFUSE_PUBLIC_KEY=pk-lf-...
+python examples/run_live_benchmark.py
+```
+
+### What you'll see
+
+```
+Benchmark Results (N=30, model=gemini-2.5-pro)
+┏━━━━━━━━┳━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Metric ┃ Zero-Shot        ┃ Static Few-Shot     ┃ Dynamic (Proposed)       ┃
+┡━━━━━━━━╇━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ TSA    │ 63.3% [53%, 73%] │ 70.0% [56%, 83%]    │ 83.3% [70%, 93%]         │
+│ PV     │ 72.2%            │ 79.6%               │ 84.0%                    │
+│ PCR    │ 33.3% [16%, 50%] │ 50.0% [33%, 66%]    │ 63.3% [46%, 80%]         │
+│ ESA    │ 63.3% [46%, 80%] │ 70.0% [53%, 86%]    │ 83.3% [70%, 93%]         │
+└────────┴──────────────────┴─────────────────────┴──────────────────────────┘
+```
+
+Results include per-task breakdowns, difficulty-tier analysis, and McNemar's test.
+
+---
+
+## Pipeline Validation (No API Keys)
+
+Validates every component works correctly using mock services:
+
+```bash
+python examples/validate_pipeline.py
+```
+
+This verifies:
+- 12 seed traces load and pass schema validation
+- 30 ground truth tasks have correct structure
+- InMemoryTraceStore embeds, stores, and retrieves traces
+- PlanEngine generates plans (zero-shot, static, dynamic)
+- BenchmarkRunner scores and compares strategies
+- Gatekeeper pipeline accepts/rejects traces
+- Langfuse tracer handles offline mode gracefully
+
+All **30 checks** pass with zero external dependencies.
 
 ---
 
@@ -110,7 +238,7 @@ python -m agent.app "Build a revenue analysis pipeline"
 ### Prerequisites
 
 - Python 3.11+
-- PostgreSQL with [pgvector](https://github.com/pgvector/pgvector) extension
+- (Optional) PostgreSQL with [pgvector](https://github.com/pgvector/pgvector) for production deployments
 
 ### Install with uv (recommended)
 
@@ -128,19 +256,22 @@ pip install behavioral-memory
 pip install behavioral-memory[agent,eval]
 ```
 
-### Configure
+### Environment Setup
 
 ```bash
+# Interactive setup (guides you through each variable)
+behavioral-memory setup
+
+# Or manual
 cp .env.example .env
-# Edit .env with your credentials
 ```
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `VECTOR_STORE_URL` | Yes | PostgreSQL+pgvector connection string |
-| `GOOGLE_API_KEY` | For reference agent | Gemini API key |
-| `LANGFUSE_SECRET_KEY` | For feedback loop | Langfuse secret key |
-| `LANGFUSE_PUBLIC_KEY` | For feedback loop | Langfuse public key |
+| `GOOGLE_API_KEY` | For LLM calls | Gemini API key (or use any LangChain-compatible LLM) |
+| `VECTOR_STORE_URL` | For PostgreSQL mode | `postgresql+psycopg://localhost/behavioral_memory` |
+| `LANGFUSE_SECRET_KEY` | For observability | Langfuse secret key |
+| `LANGFUSE_PUBLIC_KEY` | For observability | Langfuse public key |
 
 ---
 
@@ -152,7 +283,7 @@ cp .env.example .env
 behavioral-memory/
 ├── src/behavioral_memory/     # The pip-installable library
 │   ├── core/                  #   Schemas, config, exceptions
-│   ├── memory/                #   Behavioral Layer (TraceStore, dedup, token budget)
+│   ├── memory/                #   Behavioral Layer (TraceStore, InMemoryTraceStore, dedup)
 │   ├── tools/                 #   Tool Layer (MCP client, registry, mock tools)
 │   ├── planner/               #   Executive Layer (PlanEngine, prompt, postprocess)
 │   ├── gatekeeper/            #   Gatekeeper (schema validator, sandbox, dedup gate)
@@ -162,13 +293,25 @@ behavioral-memory/
 │   ├── graph.py               #   StateGraph definition
 │   ├── state.py               #   Agent state
 │   └── nodes/                 #   Graph nodes (retrieve, plan, execute, observe)
-├── tests/                     # Unit + integration tests
-└── examples/                  # Usage examples
+├── tests/                     # 104 tests (unit + integration + e2e)
+│   ├── unit/                  #   61 unit tests
+│   ├── integration/           #   3 integration tests
+│   └── e2e/                   #   40 end-to-end tests
+├── examples/
+│   ├── validate_pipeline.py   #   Full pipeline validation (no API keys)
+│   ├── run_live_benchmark.py  #   Real benchmark (needs API key)
+│   └── run_benchmark.py       #   Benchmark with PostgreSQL
+└── .github/workflows/         # CI/CD
 ```
 
-### The Framework is Model-Agnostic
+### Store Options
 
-The library accepts any LangChain-compatible model:
+| Store | When to Use | Requires |
+|-------|------------|----------|
+| `InMemoryTraceStore` | Development, demos, CI, benchmarks | Nothing (numpy only) |
+| `TraceStore` | Production with persistent memory | PostgreSQL + pgvector |
+
+### The Framework is Model-Agnostic
 
 | Provider | LLM | Embeddings |
 |----------|-----|------------|
@@ -179,7 +322,7 @@ The library accepts any LangChain-compatible model:
 
 ---
 
-## Feedback Loop
+## Feedback Loop (Langfuse)
 
 The system learns from human feedback via Langfuse:
 
@@ -196,31 +339,45 @@ from behavioral_memory import FeedbackPoller, GatekeeperPipeline
 poller = FeedbackPoller(settings=settings)
 gatekeeper = GatekeeperPipeline(store=store, registry=registry)
 
-# Auto-learn in the background
 poller.poll_loop(callback=lambda trace: gatekeeper.submit(trace))
 ```
 
 ---
 
-## Evaluation
+## Testing
 
-### Reproduce Paper Results
-
-```bash
-pip install behavioral-memory[agent,eval]
-python examples/run_benchmark.py
-```
-
-### CLI Tools
+### Run all tests (104 tests, no external services needed)
 
 ```bash
-behavioral-memory benchmark info          # Dataset summary
-behavioral-memory benchmark ground-truth  # View all 30 tasks
-behavioral-memory benchmark seed-traces   # View 12 seed traces
-behavioral-memory benchmark tools         # View 7 tool definitions
+pip install -e ".[dev]"
+pytest tests/ -v
 ```
 
-### Metrics (Section IV.C)
+### Test breakdown
+
+| Suite | Tests | What it covers |
+|-------|-------|---------------|
+| `tests/unit/` | 61 | Schemas, metrics, postprocessing, prompt assembly, token budget, in-memory store |
+| `tests/integration/` | 3 | Schema validator + sandbox with real traces |
+| `tests/e2e/` | 40 | Full pipeline: seed traces → prompt → mock LLM → metrics → gatekeeper |
+
+### Pipeline validation
+
+```bash
+python examples/validate_pipeline.py   # 30 checks, 0 external deps
+```
+
+### Linting and type checking
+
+```bash
+ruff check src/ tests/ agent/
+ruff format src/ tests/ agent/
+mypy src/
+```
+
+---
+
+## Evaluation Metrics (Section IV.C)
 
 | Metric | Description |
 |--------|-------------|
@@ -228,6 +385,19 @@ behavioral-memory benchmark tools         # View 7 tool definitions
 | **PV** | Parameter Validity — fraction of key params correct |
 | **PCR** | Plan Correctness Rate — correct tools AND >= 80% PV |
 | **ESA** | Execution Sequence Accuracy — correct tool ordering |
+
+---
+
+## CLI Tools
+
+```bash
+behavioral-memory setup                    # Interactive .env setup
+behavioral-memory demo                     # Offline demo of behavioral memory
+behavioral-memory benchmark info           # Dataset summary
+behavioral-memory benchmark ground-truth   # View all 30 tasks
+behavioral-memory benchmark seed-traces    # View 12 seed traces
+behavioral-memory benchmark tools          # View 7 tool definitions
+```
 
 ---
 
@@ -253,7 +423,7 @@ All settings via environment variables or `.env`:
 
 | Component | Technology |
 |-----------|-----------|
-| Vector Store | PostgreSQL + pgvector |
+| Vector Store | PostgreSQL + pgvector (production) / In-memory (development) |
 | Embeddings | Any LangChain Embeddings (default: Gemini) |
 | LLM | Any LangChain ChatModel (default: Gemini 2.5 Pro) |
 | Agent Framework | LangGraph 1.x (reference agent) |
@@ -261,8 +431,8 @@ All settings via environment variables or `.env`:
 | Config | Pydantic Settings |
 | Tokenization | tiktoken |
 | CLI | Typer + Rich |
-| Testing | pytest |
-| Linting | ruff |
+| Testing | pytest (104 tests) |
+| Linting | ruff + pre-commit hooks |
 | Type Checking | mypy (strict) |
 | Package Management | uv |
 
