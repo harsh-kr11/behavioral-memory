@@ -12,6 +12,7 @@ The engine is model-agnostic — it accepts any LangChain BaseChatModel.
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -19,7 +20,6 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from behavioral_memory.core.config import Settings
 from behavioral_memory.core.exceptions import PlanGenerationError
 from behavioral_memory.core.schemas import ExecutionTrace, Plan, ToolSchema
-from behavioral_memory.memory.store import TraceStore
 from behavioral_memory.memory.token_budget import select_traces_within_budget
 from behavioral_memory.planner.postprocess import postprocess_plan
 from behavioral_memory.planner.prompt import SYSTEM_PROMPT, build_prompt
@@ -38,7 +38,7 @@ class PlanEngine:
     def __init__(
         self,
         llm: BaseChatModel,
-        store: TraceStore,
+        store: Any,
         registry: ToolRegistry | None = None,
         settings: Settings | None = None,
     ) -> None:

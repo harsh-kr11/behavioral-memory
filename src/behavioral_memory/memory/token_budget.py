@@ -7,11 +7,12 @@ Traces are greedily packed in order of descending similarity score.
 
 from __future__ import annotations
 
+from typing import Any
+
 import tiktoken
 
 from behavioral_memory.core.config import Settings
 from behavioral_memory.core.schemas import ExecutionTrace, ToolSchema
-from behavioral_memory.memory.store import TraceStore
 
 _ENCODER = tiktoken.get_encoding("cl100k_base")
 
@@ -35,7 +36,7 @@ def _schema_tokens(schemas: list[ToolSchema]) -> int:
 
 
 def select_traces_within_budget(
-    store: TraceStore,
+    store: Any,
     query: str,
     tool_schemas: list[ToolSchema],
     *,

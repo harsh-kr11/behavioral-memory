@@ -19,6 +19,7 @@ from behavioral_memory.core.schemas import (
 )
 from behavioral_memory.gatekeeper.pipeline import GatekeeperPipeline
 from behavioral_memory.memory.dedup import Deduplicator
+from behavioral_memory.memory.in_memory_store import InMemoryTraceStore
 from behavioral_memory.memory.store import TraceStore
 from behavioral_memory.observability.annotation import AnnotationHandler
 from behavioral_memory.observability.feedback import FeedbackPoller
@@ -33,6 +34,7 @@ __all__ = [
     "FeedbackPoller",
     "GatekeeperPipeline",
     "GatekeeperResult",
+    "InMemoryTraceStore",
     "LangfuseTracer",
     "Plan",
     "PlanEngine",

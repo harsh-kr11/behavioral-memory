@@ -8,6 +8,8 @@ three-layer architecture from the paper:
 
 from __future__ import annotations
 
+from typing import Any
+
 from langchain_core.language_models import BaseChatModel
 from langgraph.graph import END, START, StateGraph
 
@@ -18,7 +20,6 @@ from agent.nodes.plan import make_plan_node
 from agent.nodes.retrieve import make_retrieve_node
 from agent.state import AgentState
 from behavioral_memory.core.config import Settings
-from behavioral_memory.memory.store import TraceStore
 from behavioral_memory.observability.tracer import LangfuseTracer
 from behavioral_memory.planner.engine import PlanEngine
 from behavioral_memory.tools.registry import ToolRegistry
@@ -26,7 +27,7 @@ from behavioral_memory.tools.registry import ToolRegistry
 
 def build_agent_graph(
     llm: BaseChatModel,
-    store: TraceStore,
+    store: Any,
     registry: ToolRegistry,
     settings: Settings | None = None,
 ) -> StateGraph:
