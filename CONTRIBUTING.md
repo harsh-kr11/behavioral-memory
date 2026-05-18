@@ -7,7 +7,7 @@ for contributing to the project.
 
 ```bash
 # Clone the repo
-git clone https://github.com/SteveGates11/behavioral-memory.git
+git clone https://github.com/harsh-kr11/behavioral-memory.git
 cd behavioral-memory
 
 # Install uv (if not already installed)
