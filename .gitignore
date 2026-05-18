@@ -30,3 +30,7 @@ htmlcov/
 Thumbs.db
 
 uv.lock
+
+benchmark_results.json
+.chainlit/
+chainlit.md

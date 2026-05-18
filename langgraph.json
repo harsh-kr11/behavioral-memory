@@ -1,0 +1,16 @@
+{
+  "$schema": "https://langgra.ph/schema.json",
+  "python_version": "3.11",
+  "dependencies": [
+    ".",
+    "langchain-google-genai",
+    "langgraph"
+  ],
+  "graphs": {
+    "behavioral_memory_agent": {
+      "path": "./server.py:graph",
+      "description": "Behavioral Memory Agent — generates tool orchestration plans using validated execution traces from memory"
+    }
+  },
+  "env": ".env"
+}
