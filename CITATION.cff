@@ -1,0 +1,36 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite our paper."
+title: "Behavioral Memory for Tool Orchestration"
+type: software
+authors:
+  - family-names: Khan
+    given-names: Mehvash
+    email: mehkhan@redhat.com
+    affiliation: Red Hat
+  - family-names: Kumar
+    given-names: Harsh
+    email: harskuma@redhat.com
+    affiliation: Red Hat
+  - family-names: Jangir
+    given-names: Rahul
+    email: rjangir@redhat.com
+    affiliation: Red Hat
+preferred-citation:
+  type: conference-paper
+  title: "Behavioral Memory for Tool Orchestration: Semantic Retrieval of Validated Execution Traces in MCP-Based Agent Systems"
+  authors:
+    - family-names: Khan
+      given-names: Mehvash
+    - family-names: Kumar
+      given-names: Harsh
+    - family-names: Jangir
+      given-names: Rahul
+  year: 2025
+  collection-title: "IEEE Conference Proceedings"
+  keywords:
+    - Tool-Augmented Agents
+    - Agent Orchestration
+    - Model Context Protocol
+    - Few-Shot Learning
+    - Semantic Retrieval
+    - Behavioral Memory

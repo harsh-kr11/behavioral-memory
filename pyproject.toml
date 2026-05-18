@@ -1,0 +1,137 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "behavioral-memory"
+version = "0.1.0"
+description = "Validated execution traces as memory for MCP-based agent tool orchestration"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "Apache-2.0"
+authors = [
+    { name = "Harsh Kumar", email = "harskuma@redhat.com" },
+    { name = "Mehvash Khan", email = "mehkhan@redhat.com" },
+    { name = "Rahul Jangir", email = "rjangir@redhat.com" },
+]
+keywords = [
+    "llm",
+    "agents",
+    "mcp",
+    "tool-orchestration",
+    "behavioral-memory",
+    "langfuse",
+    "retrieval-augmented",
+    "execution-traces",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Typing :: Typed",
+]
+
+dependencies = [
+    "pydantic>=2.0",
+    "pydantic-settings>=2.0",
+    "sqlalchemy>=2.0",
+    "psycopg[binary]>=3.1",
+    "pgvector>=0.3",
+    "langchain-core>=0.3",
+    "langfuse>=2.0",
+    "tiktoken>=0.7",
+    "mcp>=1.0",
+    "rich>=13.0",
+]
+
+[project.optional-dependencies]
+agent = [
+    "langgraph>=1.2",
+    "langgraph-prebuilt>=1.1",
+    "langchain-google-genai>=2.0",
+    "typer>=0.12",
+]
+eval = [
+    "numpy>=1.26",
+    "scipy>=1.12",
+]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "ruff>=0.9",
+    "mypy>=1.10",
+    "pre-commit>=3.0",
+]
+all = [
+    "behavioral-memory[agent,eval,dev]",
+]
+
+[project.scripts]
+behavioral-memory = "behavioral_memory.cli:app"
+
+[project.urls]
+Homepage = "https://github.com/SteveGates11/behavioral-memory"
+Documentation = "https://github.com/SteveGates11/behavioral-memory#readme"
+Repository = "https://github.com/SteveGates11/behavioral-memory"
+Issues = "https://github.com/SteveGates11/behavioral-memory/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/behavioral_memory"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+src = ["src", "agent", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "I",    # isort
+    "N",    # pep8-naming
+    "W",    # pycodestyle warnings
+    "UP",   # pyupgrade
+    "B",    # flake8-bugbear
+    "SIM",  # flake8-simplify
+    "RUF",  # ruff-specific
+    "TC",   # flake8-type-checking
+]
+ignore = [
+    "TC001",  # runtime imports used as constructor args
+    "TC002",  # runtime imports used as constructor args
+    "E501",   # line length handled by formatter
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["behavioral_memory"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = [
+    "langchain_core.*",
+    "langchain_google_genai.*",
+    "langchain_postgres.*",
+    "langgraph.*",
+    "langfuse.*",
+    "pgvector.*",
+    "tiktoken.*",
+    "mcp.*",
+]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+asyncio_mode = "auto"
