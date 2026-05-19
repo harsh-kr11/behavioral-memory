@@ -2,6 +2,8 @@
 
 Logs execution traces, retrieved examples, and generated plans to
 Langfuse for observability and later SME review (Section III.F).
+
+Compatible with Langfuse SDK v4+.
 """
 
 from __future__ import annotations
@@ -55,6 +57,7 @@ class LangfuseTracer:
         """Log a generated plan to Langfuse.
 
         Returns the trace ID if successful, None otherwise.
+        Compatible with Langfuse SDK v4+ (start_as_current_observation API).
         """
         if not self.enabled or self.client is None:
             return None
@@ -64,32 +67,38 @@ class LangfuseTracer:
             if tags:
                 trace_tags.extend(tags)
 
-            trace = self.client.trace(
+            output_data = json.dumps([s.model_dump() for s in plan.steps], indent=2)
+
+            span = self.client.start_observation(
                 name="plan_generation",
+                as_type="span",
                 input=plan.query,
-                output=json.dumps([s.model_dump() for s in plan.steps], indent=2),
-                user_id=user_id,
-                session_id=session_id,
-                tags=trace_tags,
+                output=output_data,
                 metadata={
                     "retrieved_traces_count": len(plan.retrieved_traces),
                     "schemas_used": [s.name for s in plan.schemas_used],
                     "token_budget_used": plan.token_budget_used,
                     "steps_count": len(plan.steps),
+                    "tags": trace_tags,
+                    "user_id": user_id,
+                    "session_id": session_id,
                 },
             )
 
-            trace.generation(
+            generation = span.start_observation(
                 name="llm_plan_generation",
+                as_type="generation",
                 input=plan.query,
                 output=plan.raw_llm_output,
                 metadata={
                     "retrieved_examples": [t.task_description for t in plan.retrieved_traces],
                 },
             )
+            generation.end()
+            span.end()
 
             self.client.flush()
-            trace_id: str = trace.id
+            trace_id: str = span.trace_id
             logger.info("Logged plan to Langfuse: trace_id=%s", trace_id)
             return trace_id
 

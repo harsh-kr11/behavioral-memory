@@ -44,14 +44,13 @@ class FeedbackPoller:
         """Fetch traces with positive SME scores from Langfuse.
 
         Returns ExecutionTrace objects ready for gatekeeper evaluation.
+        Compatible with Langfuse SDK v4+ (client.api.trace/scores).
         """
         if self.client is None:
             return []
 
         try:
-            traces_response = self.client.fetch_traces(
-                tags=["behavioral-memory"],
-            )
+            traces_response = self.client.api.trace.list(tags="behavioral-memory")
             traces = traces_response.data if hasattr(traces_response, "data") else []
         except Exception as e:
             logger.warning("Failed to fetch traces from Langfuse: %s", e)
@@ -70,7 +69,10 @@ class FeedbackPoller:
     def _has_positive_score(self, trace: Any) -> bool:
         """Check if a trace has a positive score meeting the threshold."""
         try:
-            scores_response = self.client.fetch_scores(trace_id=trace.id)
+            scores_response = self.client.api.scores.list(
+                trace_id=trace.id,
+                config_id=None,
+            )
             scores = scores_response.data if hasattr(scores_response, "data") else []
             for score in scores:
                 if (
