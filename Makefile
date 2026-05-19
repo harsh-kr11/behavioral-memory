@@ -1,4 +1,4 @@
-.PHONY: help install dev lint format typecheck test test-unit test-e2e demo benchmark validate clean
+.PHONY: help install dev lint format typecheck test test-unit test-e2e demo benchmark benchmark-pg validate clean
 
 help:  ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
@@ -31,8 +31,11 @@ test-e2e:  ## Run end-to-end tests only
 demo:  ## Run offline demo (no API keys needed)
 	uv run behavioral-memory demo
 
-benchmark:  ## Run live benchmark (requires GOOGLE_API_KEY)
+benchmark:  ## Run live benchmark with in-memory store (requires GOOGLE_API_KEY)
 	uv run python examples/run_live_benchmark.py
+
+benchmark-pg:  ## Run live benchmark with pgvector (requires GOOGLE_API_KEY + PostgreSQL)
+	uv run python examples/run_live_benchmark.py --postgres
 
 ablation:  ## Run gatekeeper ablation study
 	uv run python examples/gatekeeper_ablation.py --verbose

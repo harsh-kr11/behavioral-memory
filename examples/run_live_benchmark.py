@@ -40,6 +40,7 @@ def main() -> None:
     parser.add_argument("--limit", type=int, default=0, help="Limit to N tasks (0 = all 30)")
     parser.add_argument("--model", type=str, default="gemini-2.5-pro", help="Gemini model name")
     parser.add_argument("--output", type=str, default="benchmark_results.json", help="Output file")
+    parser.add_argument("--postgres", action="store_true", help="Use PostgreSQL+pgvector instead of in-memory store")
     args = parser.parse_args()
 
     console.print(
@@ -78,8 +79,15 @@ def main() -> None:
     llm = ChatGoogleGenerativeAI(model=args.model, temperature=0)
     embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001")
 
-    console.print("[dim]Creating in-memory vector store (no PostgreSQL needed)...[/dim]")
-    store = InMemoryTraceStore(embeddings=embeddings, settings=settings)
+    if args.postgres:
+        from behavioral_memory.memory.store import TraceStore
+
+        console.print("[dim]Connecting to PostgreSQL+pgvector...[/dim]")
+        store = TraceStore(embeddings=embeddings, settings=settings)
+        console.print(f"[green]Connected to {settings.vector_store_url.split('@')[-1]}[/green]")
+    else:
+        console.print("[dim]Creating in-memory vector store (no PostgreSQL needed)...[/dim]")
+        store = InMemoryTraceStore(embeddings=embeddings, settings=settings)
 
     registry = ToolRegistry()
     schemas = get_tool_schemas()
@@ -87,7 +95,8 @@ def main() -> None:
 
     seed_traces = get_seed_traces()
     store.add_bulk(seed_traces)
-    console.print(f"[green]Seeded {store.count()} traces into in-memory store[/green]")
+    store_label = "pgvector" if args.postgres else "in-memory store"
+    console.print(f"[green]Seeded {store.count()} traces into {store_label}[/green]")
 
     engine = PlanEngine(llm=llm, store=store, registry=registry, settings=settings)
     runner = BenchmarkRunner(tool_schemas=schemas)
