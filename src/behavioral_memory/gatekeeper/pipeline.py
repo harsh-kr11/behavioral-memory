@@ -37,9 +37,7 @@ class GatekeeperPipeline:
         self._settings = settings or Settings()
         self._schema_validator = SchemaValidator(registry)
         self._sandbox = SandboxExecutor(settings=self._settings)
-        self._dedup_gate = DeduplicationGate(
-            Deduplicator(store=store, settings=self._settings)
-        )
+        self._dedup_gate = DeduplicationGate(Deduplicator(store=store, settings=self._settings))
 
     def evaluate(self, trace: ExecutionTrace) -> GatekeeperResult:
         """Run a trace through all three gates and return the result.

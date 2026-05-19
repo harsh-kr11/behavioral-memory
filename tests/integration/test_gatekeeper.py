@@ -16,10 +16,36 @@ class TestSchemaValidatorIntegration:
             task_description="Revenue pipeline",
             tool_chain=[
                 ToolCall(step_id="s1", tool_name="query_database", parameters={"query": "SELECT 1"}),
-                ToolCall(step_id="s2", tool_name="transform_data", parameters={"source_step": "s1", "operation": "compute", "params": {"new_column": "x", "expression": "1+1"}}),
-                ToolCall(step_id="s3", tool_name="generate_report", parameters={"source_step": "s2", "format": "markdown_table", "title": "Report"}),
-                ToolCall(step_id="s4", tool_name="send_notification", parameters={"channel": "email", "recipient": "a@b.com", "subject": "Report", "body": "Done", "attach_step": "s3"}),
-                ToolCall(step_id="s5", tool_name="store_results", parameters={"source_step": "s2", "target": "csv_file", "target_name": "out.csv"}),
+                ToolCall(
+                    step_id="s2",
+                    tool_name="transform_data",
+                    parameters={
+                        "source_step": "s1",
+                        "operation": "compute",
+                        "params": {"new_column": "x", "expression": "1+1"},
+                    },
+                ),
+                ToolCall(
+                    step_id="s3",
+                    tool_name="generate_report",
+                    parameters={"source_step": "s2", "format": "markdown_table", "title": "Report"},
+                ),
+                ToolCall(
+                    step_id="s4",
+                    tool_name="send_notification",
+                    parameters={
+                        "channel": "email",
+                        "recipient": "a@b.com",
+                        "subject": "Report",
+                        "body": "Done",
+                        "attach_step": "s3",
+                    },
+                ),
+                ToolCall(
+                    step_id="s5",
+                    tool_name="store_results",
+                    parameters={"source_step": "s2", "target": "csv_file", "target_name": "out.csv"},
+                ),
             ],
             source="execution",
         )
@@ -35,7 +61,11 @@ class TestSandboxIntegration:
             task_description="test",
             tool_chain=[
                 ToolCall(step_id="s1", tool_name="query_database", parameters={"query": "SELECT 1"}),
-                ToolCall(step_id="s2", tool_name="generate_report", parameters={"source_step": "s1", "format": "csv", "title": "t"}),
+                ToolCall(
+                    step_id="s2",
+                    tool_name="generate_report",
+                    parameters={"source_step": "s1", "format": "csv", "title": "t"},
+                ),
             ],
         )
         passed, _msg = sandbox.execute(trace)
@@ -47,7 +77,11 @@ class TestSandboxIntegration:
             task_description="test",
             tool_chain=[
                 ToolCall(step_id="s1", tool_name="query_database", parameters={"query": "SELECT 1"}),
-                ToolCall(step_id="s2", tool_name="generate_report", parameters={"source_step": "nonexistent", "format": "csv", "title": "t"}),
+                ToolCall(
+                    step_id="s2",
+                    tool_name="generate_report",
+                    parameters={"source_step": "nonexistent", "format": "csv", "title": "t"},
+                ),
             ],
         )
         passed, msg = sandbox.execute(trace)

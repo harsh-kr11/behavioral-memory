@@ -100,9 +100,9 @@ class FeedbackPoller:
 
             tool_chain = [
                 ToolCall(
-                    step_id=s.get("step_id", f"step_{i+1}"),
-                    tool_name=s.get("tool_name", s.get("tool", "")),
-                    parameters=s.get("parameters", s.get("params", {})),
+                    step_id=s.get("step_id", f"step_{i + 1}"),
+                    tool_name=str(s.get("tool_name", s.get("tool", ""))),
+                    parameters=dict(s.get("parameters", s.get("params", {}))),  # type: ignore[arg-type]
                     depends_on=s.get("depends_on", []),
                 )
                 for i, s in enumerate(steps_data)
@@ -126,9 +126,7 @@ class FeedbackPoller:
         """Single poll cycle."""
         return self.fetch_positive_traces()
 
-    def poll_loop(
-        self, callback: Any = None, max_iterations: int | None = None
-    ) -> None:
+    def poll_loop(self, callback: Any = None, max_iterations: int | None = None) -> None:
         """Continuous polling loop.
 
         Calls callback(trace) for each positive trace found.

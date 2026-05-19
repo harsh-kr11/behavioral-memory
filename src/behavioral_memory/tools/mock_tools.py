@@ -15,9 +15,11 @@ Tool categories:
 
 from __future__ import annotations
 
+from typing import Any
+
 from behavioral_memory.core.schemas import ToolSchema
 
-TOOL_DEFINITIONS: list[dict] = [
+TOOL_DEFINITIONS: list[dict[str, Any]] = [
     {
         "name": "query_database",
         "description": (

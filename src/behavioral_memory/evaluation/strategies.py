@@ -22,16 +22,12 @@ class ZeroShotStrategy:
 class StaticFewShotStrategy:
     """Baseline: a fixed set of 3 examples is included for all tasks."""
 
-    def __init__(
-        self, engine: PlanEngine, static_traces: list[ExecutionTrace]
-    ) -> None:
+    def __init__(self, engine: PlanEngine, static_traces: list[ExecutionTrace]) -> None:
         self._engine = engine
         self._static = static_traces[:3]
 
     def generate(self, query: str, tool_schemas: list[ToolSchema]) -> Plan:
-        return self._engine.generate_static_few_shot(
-            query, tool_schemas, self._static
-        )
+        return self._engine.generate_static_few_shot(query, tool_schemas, self._static)
 
 
 class DynamicRetrievalStrategy:

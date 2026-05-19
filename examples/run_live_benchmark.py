@@ -42,13 +42,15 @@ def main() -> None:
     parser.add_argument("--output", type=str, default="benchmark_results.json", help="Output file")
     args = parser.parse_args()
 
-    console.print(Panel.fit(
-        "[bold]Behavioral Memory — Live Benchmark[/bold]\n\n"
-        "This runs the REAL benchmark from the paper.\n"
-        "It calls the LLM for every task and scores plans against gold chains.\n"
-        f"Model: {args.model}  |  Tasks: {'all 30' if args.limit == 0 else args.limit}",
-        title="Live Benchmark",
-    ))
+    console.print(
+        Panel.fit(
+            "[bold]Behavioral Memory — Live Benchmark[/bold]\n\n"
+            "This runs the REAL benchmark from the paper.\n"
+            "It calls the LLM for every task and scores plans against gold chains.\n"
+            f"Model: {args.model}  |  Tasks: {'all 30' if args.limit == 0 else args.limit}",
+            title="Live Benchmark",
+        )
+    )
 
     try:
         from langchain_google_genai import ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings

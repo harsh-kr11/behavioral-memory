@@ -25,9 +25,7 @@ class ToolCall(BaseModel):
 
     step_id: str = Field(description="Unique identifier for this step within the trace")
     tool_name: str = Field(description="Name of the MCP tool to invoke")
-    parameters: dict[str, Any] = Field(
-        default_factory=dict, description="Tool invocation parameters"
-    )
+    parameters: dict[str, Any] = Field(default_factory=dict, description="Tool invocation parameters")
     depends_on: list[str] = Field(
         default_factory=list,
         description="Step IDs that must complete before this step executes",
@@ -60,9 +58,7 @@ class ToolSchema(BaseModel):
     parameters_schema: dict[str, Any] = Field(
         default_factory=dict, description="JSON Schema for the tool's input parameters"
     )
-    required_params: list[str] = Field(
-        default_factory=list, description="List of required parameter names"
-    )
+    required_params: list[str] = Field(default_factory=list, description="List of required parameter names")
 
 
 class ExecutionTrace(BaseModel):
@@ -107,9 +103,7 @@ class ExecutionTrace(BaseModel):
 
     def to_prompt_str(self) -> str:
         """Serialize this trace into a string suitable for prompt injection."""
-        chain_str = json.dumps(
-            [step.model_dump() for step in self.tool_chain], indent=2
-        )
+        chain_str = json.dumps([step.model_dump() for step in self.tool_chain], indent=2)
         return f"Task: {self.task_description}\nTool Chain:\n{chain_str}"
 
 
@@ -125,9 +119,7 @@ class Plan(BaseModel):
     retrieved_traces: list[ExecutionTrace] = Field(
         default_factory=list, description="Traces retrieved from behavioral memory"
     )
-    schemas_used: list[ToolSchema] = Field(
-        default_factory=list, description="Tool schemas available during planning"
-    )
+    schemas_used: list[ToolSchema] = Field(default_factory=list, description="Tool schemas available during planning")
     token_budget_used: int = Field(default=0, description="Tokens consumed by the prompt")
     raw_llm_output: str = Field(default="", description="Raw LLM response before parsing")
 
@@ -144,6 +136,4 @@ class GatekeeperResult(BaseModel):
     sandbox_passed: bool = Field(default=False, description="Passed sandboxed execution")
     is_duplicate: bool = Field(default=False, description="Flagged as semantic duplicate")
     rejection_reason: str = Field(default="", description="Human-readable rejection reason")
-    failures: list[str] = Field(
-        default_factory=list, description="List of specific validation failures"
-    )
+    failures: list[str] = Field(default_factory=list, description="List of specific validation failures")

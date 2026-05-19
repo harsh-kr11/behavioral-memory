@@ -27,9 +27,7 @@ async def fetch_mcp_schemas(server_url: str) -> list[ToolSchema]:
         from mcp import ClientSession
         from mcp.client.sse import sse_client
     except ImportError as e:
-        raise MCPConnectionError(
-            "MCP SDK not installed. Install with: pip install mcp"
-        ) from e
+        raise MCPConnectionError("MCP SDK not installed. Install with: pip install mcp") from e
 
     schemas: list[ToolSchema] = []
     try:
@@ -59,9 +57,7 @@ async def fetch_mcp_schemas(server_url: str) -> list[ToolSchema]:
     return schemas
 
 
-def load_schemas_into_registry(
-    schemas: list[ToolSchema], registry: ToolRegistry | None = None
-) -> ToolRegistry:
+def load_schemas_into_registry(schemas: list[ToolSchema], registry: ToolRegistry | None = None) -> ToolRegistry:
     """Load a list of ToolSchemas into a ToolRegistry."""
     reg = registry or ToolRegistry()
     reg.register_many(schemas)

@@ -243,10 +243,11 @@ All **30 checks** pass with zero external dependencies.
 ### Install with uv (recommended)
 
 ```bash
-uv add behavioral-memory           # core framework
-uv add behavioral-memory[agent]    # + reference LangGraph agent
-uv add behavioral-memory[eval]     # + evaluation/statistics
-uv add behavioral-memory[all]      # everything
+uv add behavioral-memory              # core framework (no PostgreSQL needed)
+uv add behavioral-memory[agent]       # + reference LangGraph agent
+uv add behavioral-memory[eval]        # + evaluation/statistics (scipy)
+uv add behavioral-memory[postgres]    # + PostgreSQL/pgvector store
+uv add behavioral-memory[all]         # everything
 ```
 
 ### Install with pip
@@ -254,6 +255,7 @@ uv add behavioral-memory[all]      # everything
 ```bash
 pip install behavioral-memory
 pip install behavioral-memory[agent,eval]
+pip install behavioral-memory[postgres]  # only if using PostgreSQL
 ```
 
 ### Environment Setup
@@ -298,10 +300,12 @@ behavioral-memory/
 │   ├── integration/           #   3 integration tests
 │   └── e2e/                   #   40 end-to-end tests
 ├── examples/
-│   ├── validate_pipeline.py   #   Full pipeline validation (no API keys)
-│   ├── run_live_benchmark.py  #   Real benchmark (needs API key)
-│   └── run_benchmark.py       #   Benchmark with PostgreSQL
-└── .github/workflows/         # CI/CD
+│   ├── validate_pipeline.py       # Full pipeline validation (no API keys)
+│   ├── run_live_benchmark.py      # Real benchmark (needs API key)
+│   ├── gatekeeper_ablation.py     # Gatekeeper ablation study (Section IV.D.5)
+│   └── run_benchmark.py           # Benchmark with PostgreSQL
+├── Makefile                       # Common dev tasks (make lint, make test, etc.)
+└── .github/workflows/             # CI/CD (lint, typecheck, test on 3.11/3.12/3.13)
 ```
 
 ### Store Options
@@ -370,9 +374,45 @@ python examples/validate_pipeline.py   # 30 checks, 0 external deps
 ### Linting and type checking
 
 ```bash
-ruff check src/ tests/ agent/
-ruff format src/ tests/ agent/
-mypy src/
+make lint         # or: ruff check src/ tests/ agent/ examples/ server.py
+make format       # or: ruff format src/ tests/ agent/ examples/ server.py
+make typecheck    # or: mypy src/
+```
+
+---
+
+## Gatekeeper Ablation Study (Section IV.D.5)
+
+Tests the critical role of the gatekeeper by injecting 8 deliberately poisoned traces
+(wrong conventions, broken dependencies, incorrect tools) into memory:
+
+```bash
+python examples/gatekeeper_ablation.py --verbose
+```
+
+Three conditions are compared:
+1. **Baseline** — only valid seed traces (gatekeeper ON)
+2. **Poisoned** — bad traces injected (gatekeeper OFF)
+3. **Recovered** — gatekeeper re-enabled, bad traces filtered out
+
+The script shows how poisoned traces degrade plan quality (PCR drops) and how the
+gatekeeper catches and rejects them. Recovery restores baseline performance.
+
+---
+
+## Development
+
+```bash
+# Using the Makefile (recommended)
+make dev          # Install all dev dependencies + pre-commit hooks
+make lint         # Run ruff linter
+make format       # Auto-format code
+make typecheck    # Run mypy
+make test         # Run all 104 tests
+make ci           # Run all CI checks locally
+make ablation     # Run gatekeeper ablation study
+make validate     # Pipeline validation (no API keys)
+make demo         # Offline demo
 ```
 
 ---

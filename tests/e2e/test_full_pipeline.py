@@ -106,9 +106,7 @@ class TestGroundTruthIntegrity:
     def test_all_gold_chains_use_known_tools(self, registry):
         for task in EVALUATION_TASKS:
             for step in task["gold_tool_chain"]:
-                assert registry.has_tool(step["tool"]), (
-                    f"Task {task['task_id']}: unknown tool '{step['tool']}'"
-                )
+                assert registry.has_tool(step["tool"]), f"Task {task['task_id']}: unknown tool '{step['tool']}'"
 
     def test_gold_chain_step_ids_are_unique(self):
         for task in EVALUATION_TASKS:
@@ -185,10 +183,22 @@ class TestPostprocessorEndToEnd:
     """LLM response parsing handles realistic outputs."""
 
     def test_parses_perfect_response(self):
-        raw = json.dumps([
-            {"step_id": "step_1", "tool_name": "query_database", "parameters": {"query": "SELECT 1"}, "depends_on": []},
-            {"step_id": "step_2", "tool_name": "generate_report", "parameters": {"source_step": "step_1", "format": "csv", "title": "t"}, "depends_on": ["step_1"]},
-        ])
+        raw = json.dumps(
+            [
+                {
+                    "step_id": "step_1",
+                    "tool_name": "query_database",
+                    "parameters": {"query": "SELECT 1"},
+                    "depends_on": [],
+                },
+                {
+                    "step_id": "step_2",
+                    "tool_name": "generate_report",
+                    "parameters": {"source_step": "step_1", "format": "csv", "title": "t"},
+                    "depends_on": ["step_1"],
+                },
+            ]
+        )
         steps = postprocess_plan(raw)
         assert len(steps) == 2
         assert steps[0].tool_name == "query_database"
@@ -212,9 +222,11 @@ class TestPostprocessorEndToEnd:
         assert len(steps) == 1
 
     def test_parses_alternative_key_names(self):
-        raw = json.dumps([
-            {"step_id": "step_1", "tool": "query_database", "params": {"query": "SELECT 1"}},
-        ])
+        raw = json.dumps(
+            [
+                {"step_id": "step_1", "tool": "query_database", "params": {"query": "SELECT 1"}},
+            ]
+        )
         steps = postprocess_plan(raw)
         assert steps[0].tool_name == "query_database"
 
@@ -270,8 +282,14 @@ class TestGatekeeperEndToEnd:
         trace = ExecutionTrace(
             task_description="Get revenue and generate a report",
             tool_chain=[
-                ToolCall(step_id="s1", tool_name="query_database", parameters={"query": "SELECT SUM(amount) FROM orders"}),
-                ToolCall(step_id="s2", tool_name="generate_report", parameters={"source_step": "s1", "format": "markdown_table", "title": "Revenue"}),
+                ToolCall(
+                    step_id="s1", tool_name="query_database", parameters={"query": "SELECT SUM(amount) FROM orders"}
+                ),
+                ToolCall(
+                    step_id="s2",
+                    tool_name="generate_report",
+                    parameters={"source_step": "s1", "format": "markdown_table", "title": "Revenue"},
+                ),
             ],
             source="execution",
         )
@@ -296,7 +314,11 @@ class TestGatekeeperEndToEnd:
             task_description="test",
             tool_chain=[
                 ToolCall(step_id="s1", tool_name="query_database", parameters={"query": "SELECT 1"}),
-                ToolCall(step_id="s2", tool_name="generate_report", parameters={"source_step": "s99", "format": "csv", "title": "t"}),
+                ToolCall(
+                    step_id="s2",
+                    tool_name="generate_report",
+                    parameters={"source_step": "s99", "format": "csv", "title": "t"},
+                ),
             ],
         )
         passed, msg = sandbox.execute(trace)
@@ -311,9 +333,16 @@ class TestPlanEngineEndToEnd:
     """PlanEngine orchestration with a mocked LLM and mocked store."""
 
     def test_generate_produces_plan(self):
-        expected_output = json.dumps([
-            {"step_id": "step_1", "tool_name": "query_database", "parameters": {"query": "SELECT COUNT(*) FROM customers"}, "depends_on": []},
-        ])
+        expected_output = json.dumps(
+            [
+                {
+                    "step_id": "step_1",
+                    "tool_name": "query_database",
+                    "parameters": {"query": "SELECT COUNT(*) FROM customers"},
+                    "depends_on": [],
+                },
+            ]
+        )
 
         mock_response = MagicMock()
         mock_response.content = expected_output
@@ -346,9 +375,16 @@ class TestPlanEngineEndToEnd:
 
     def test_generate_with_traces_passes_them_to_prompt(self):
         seed_traces = get_seed_traces()[:2]
-        expected_output = json.dumps([
-            {"step_id": "step_1", "tool_name": "query_database", "parameters": {"query": "SELECT 1"}, "depends_on": []},
-        ])
+        expected_output = json.dumps(
+            [
+                {
+                    "step_id": "step_1",
+                    "tool_name": "query_database",
+                    "parameters": {"query": "SELECT 1"},
+                    "depends_on": [],
+                },
+            ]
+        )
 
         mock_response = MagicMock()
         mock_response.content = expected_output
@@ -371,9 +407,16 @@ class TestPlanEngineEndToEnd:
         assert "REFERENCE EXAMPLES" in prompt_text
 
     def test_generate_zero_shot(self):
-        expected_output = json.dumps([
-            {"step_id": "step_1", "tool_name": "query_database", "parameters": {"query": "SELECT 1"}, "depends_on": []},
-        ])
+        expected_output = json.dumps(
+            [
+                {
+                    "step_id": "step_1",
+                    "tool_name": "query_database",
+                    "parameters": {"query": "SELECT 1"},
+                    "depends_on": [],
+                },
+            ]
+        )
         mock_response = MagicMock()
         mock_response.content = expected_output
         mock_llm = MagicMock()
@@ -466,15 +509,17 @@ class TestFullRoundTrip:
         assert "customer" in prompt.lower()
 
         gold_chain = task["gold_tool_chain"]
-        fake_llm_output = json.dumps([
-            {
-                "step_id": s["step_id"],
-                "tool_name": s["tool"],
-                "parameters": s.get("params", {}),
-                "depends_on": [],
-            }
-            for s in gold_chain
-        ])
+        fake_llm_output = json.dumps(
+            [
+                {
+                    "step_id": s["step_id"],
+                    "tool_name": s["tool"],
+                    "parameters": s.get("params", {}),
+                    "depends_on": [],
+                }
+                for s in gold_chain
+            ]
+        )
 
         steps = postprocess_plan(fake_llm_output)
         assert len(steps) == len(gold_chain)
@@ -492,10 +537,7 @@ class TestFullRoundTrip:
         passed, msg = sandbox.execute(trace)
         assert passed, msg
 
-        predicted_chain = [
-            {"tool": s.tool_name, "params": s.parameters}
-            for s in steps
-        ]
+        predicted_chain = [{"tool": s.tool_name, "params": s.parameters} for s in steps]
         metrics = compute_metrics(predicted_chain, gold_chain)
         assert metrics["tsa"] is True
         assert metrics["esa"] is True
@@ -510,10 +552,17 @@ class TestFullRoundTrip:
         simple_tasks = [t for t in EVALUATION_TASKS if t["difficulty"] == "simple"]
         for task in simple_tasks:
             gold = task["gold_tool_chain"]
-            fake_output = json.dumps([
-                {"step_id": s["step_id"], "tool_name": s["tool"], "parameters": s.get("params", {}), "depends_on": []}
-                for s in gold
-            ])
+            fake_output = json.dumps(
+                [
+                    {
+                        "step_id": s["step_id"],
+                        "tool_name": s["tool"],
+                        "parameters": s.get("params", {}),
+                        "depends_on": [],
+                    }
+                    for s in gold
+                ]
+            )
             steps = postprocess_plan(fake_output)
             trace = ExecutionTrace(
                 task_description=task["task"],
@@ -534,10 +583,17 @@ class TestFullRoundTrip:
         challenging = [t for t in EVALUATION_TASKS if t["difficulty"] == "challenging"]
         for task in challenging:
             gold = task["gold_tool_chain"]
-            fake_output = json.dumps([
-                {"step_id": s["step_id"], "tool_name": s["tool"], "parameters": s.get("params", {}), "depends_on": []}
-                for s in gold
-            ])
+            fake_output = json.dumps(
+                [
+                    {
+                        "step_id": s["step_id"],
+                        "tool_name": s["tool"],
+                        "parameters": s.get("params", {}),
+                        "depends_on": [],
+                    }
+                    for s in gold
+                ]
+            )
             steps = postprocess_plan(fake_output)
             trace = ExecutionTrace(
                 task_description=task["task"],
@@ -586,8 +642,16 @@ class TestSerializationRoundTrip:
         trace = ExecutionTrace(
             task_description="Get revenue by category",
             tool_chain=[
-                ToolCall(step_id="s1", tool_name="query_database", parameters={"query": "SELECT category, SUM(revenue) FROM products GROUP BY category"}),
-                ToolCall(step_id="s2", tool_name="generate_report", parameters={"source_step": "s1", "format": "markdown_table", "title": "Revenue Report"}),
+                ToolCall(
+                    step_id="s1",
+                    tool_name="query_database",
+                    parameters={"query": "SELECT category, SUM(revenue) FROM products GROUP BY category"},
+                ),
+                ToolCall(
+                    step_id="s2",
+                    tool_name="generate_report",
+                    parameters={"source_step": "s1", "format": "markdown_table", "title": "Revenue Report"},
+                ),
             ],
             validated=True,
             source="seed",

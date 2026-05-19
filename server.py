@@ -39,6 +39,7 @@ embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001")
 use_postgres = os.getenv("USE_POSTGRES", "false").lower() == "true"
 if use_postgres:
     from behavioral_memory.memory.store import TraceStore
+
     store = TraceStore(embeddings=embeddings, settings=settings)
 else:
     store = InMemoryTraceStore(embeddings=embeddings, settings=settings)

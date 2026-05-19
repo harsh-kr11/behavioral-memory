@@ -58,13 +58,9 @@ class SchemaValidator:
         for step in trace.tool_chain:
             for dep in step.depends_on:
                 if dep not in all_ids:
-                    failures.append(
-                        f"Step '{step.step_id}' depends on non-existent step '{dep}'"
-                    )
+                    failures.append(f"Step '{step.step_id}' depends on non-existent step '{dep}'")
                 elif id_order.get(dep, -1) >= id_order.get(step.step_id, 0):
-                    failures.append(
-                        f"Step '{step.step_id}' depends on '{dep}' which comes after it"
-                    )
+                    failures.append(f"Step '{step.step_id}' depends on '{dep}' which comes after it")
         return failures
 
     def _check_required_params(self, trace: ExecutionTrace) -> list[str]:
@@ -77,12 +73,9 @@ class SchemaValidator:
         return failures
 
     @staticmethod
-    def _validate_step_params(
-        step: ToolCall, schema: ToolSchema, failures: list[str]
-    ) -> None:
+    def _validate_step_params(step: ToolCall, schema: ToolSchema, failures: list[str]) -> None:
         for req_param in schema.required_params:
             if req_param not in step.parameters:
                 failures.append(
-                    f"Step '{step.step_id}': missing required param "
-                    f"'{req_param}' for tool '{step.tool_name}'"
+                    f"Step '{step.step_id}': missing required param '{req_param}' for tool '{step.tool_name}'"
                 )

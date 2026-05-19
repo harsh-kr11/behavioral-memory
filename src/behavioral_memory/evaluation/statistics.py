@@ -39,9 +39,7 @@ def bootstrap_ci(
     return point_estimate, means[lower_idx], means[upper_idx]
 
 
-def mcnemar_test(
-    results_a: list[bool], results_b: list[bool]
-) -> dict[str, Any]:
+def mcnemar_test(results_a: list[bool], results_b: list[bool]) -> dict[str, Any]:
     """McNemar's exact test for paired binary outcomes.
 
     Compares two methods on the same set of tasks.

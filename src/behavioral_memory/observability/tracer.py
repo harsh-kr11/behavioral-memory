@@ -84,9 +84,7 @@ class LangfuseTracer:
                 input=plan.query,
                 output=plan.raw_llm_output,
                 metadata={
-                    "retrieved_examples": [
-                        t.task_description for t in plan.retrieved_traces
-                    ],
+                    "retrieved_examples": [t.task_description for t in plan.retrieved_traces],
                 },
             )
 

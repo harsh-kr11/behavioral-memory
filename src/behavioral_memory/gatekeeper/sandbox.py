@@ -76,8 +76,7 @@ class SandboxExecutor:
             if right_step and right_step not in available_outputs:
                 return (
                     False,
-                    f"Step '{step.step_id}' join references '{right_step}' "
-                    f"which has no output yet",
+                    f"Step '{step.step_id}' join references '{right_step}' which has no output yet",
                 )
 
             available_outputs.add(step.step_id)

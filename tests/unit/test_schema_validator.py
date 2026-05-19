@@ -29,7 +29,11 @@ class TestSchemaValidator:
             task_description="test",
             tool_chain=[
                 ToolCall(step_id="s1", tool_name="query_database", parameters={"query": "SELECT 1"}),
-                ToolCall(step_id="s1", tool_name="generate_report", parameters={"source_step": "s1", "format": "csv", "title": "t"}),
+                ToolCall(
+                    step_id="s1",
+                    tool_name="generate_report",
+                    parameters={"source_step": "s1", "format": "csv", "title": "t"},
+                ),
             ],
         )
         is_valid, failures = validator.validate(trace)
