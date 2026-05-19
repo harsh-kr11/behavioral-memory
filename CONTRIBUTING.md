@@ -59,6 +59,16 @@ git commit -m "your message"
 To run checks manually at any time:
 
 ```bash
+# Using make (recommended)
+make lint         # Lint
+make format       # Auto-format
+make typecheck    # Type check (mypy strict)
+make test         # Run all tests
+make ci           # All checks (lint + format + typecheck + test)
+make validate     # Pipeline validation (no API keys needed)
+make demo         # Offline demo
+
+# Or directly
 uv run ruff check src/ tests/ agent/      # Lint only
 uv run ruff check --fix src/ tests/ agent/ # Lint + auto-fix
 uv run ruff format src/ tests/ agent/      # Format

@@ -34,7 +34,8 @@ class Deduplicator:
         """Check if a trace is too similar to an existing one.
 
         Returns (is_duplicate, similarity_score).
-        Works with both TraceStore (PGVector) and InMemoryTraceStore.
+        Both TraceStore and InMemoryTraceStore return cosine similarity
+        (0-1, higher = more similar) from similarity_score().
         """
         score = self._store.similarity_score(trace.task_description)
         is_dup = score >= self.threshold

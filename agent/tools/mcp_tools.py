@@ -1,8 +1,9 @@
-"""MCP tool wrappers for LangGraph's ToolNode.
+"""Stub tool executors — example code for wiring real tool execution.
 
-These wrap the mock tools for use in the reference agent's
-execution node. In production, these would dispatch to real
-MCP servers.
+The reference agent uses plan-only mode (no real tool execution).
+These stubs show the pattern for dispatching to real MCP servers
+or local tool implementations. They are not wired into the default
+agent graph but can be used as a starting point for production agents.
 """
 
 from __future__ import annotations

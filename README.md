@@ -119,15 +119,43 @@ trace = ExecutionTrace(
 store.add(trace)
 ```
 
+### Register your own tool schemas
+
+The `PlanEngine` needs to know what tools your agent has:
+
+```python
+from behavioral_memory import ToolSchema, ToolRegistry
+
+schema = ToolSchema(
+    name="search_docs",
+    description="Search internal documentation",
+    parameters_schema={
+        "type": "object",
+        "properties": {"query": {"type": "string"}},
+        "required": ["query"],
+    },
+)
+
+registry = ToolRegistry()
+registry.register(schema)
+engine = PlanEngine(llm=llm, store=store, registry=registry)
+```
+
+Or load schemas dynamically from an MCP server:
+
+```python
+from behavioral_memory.tools.mcp_client import fetch_mcp_schemas
+
+schemas = await fetch_mcp_schemas("http://localhost:3000/sse")
+registry.register_many(schemas)
+```
+
 ### Validate before storing (Gatekeeper Pipeline)
 
 Don't let bad traces into memory. The gatekeeper runs three checks before accepting a trace:
 
 ```python
-from behavioral_memory import GatekeeperPipeline, ToolRegistry
-
-registry = ToolRegistry()
-registry.register_many(your_tool_schemas)
+from behavioral_memory import GatekeeperPipeline
 
 gatekeeper = GatekeeperPipeline(store=store, registry=registry)
 result = gatekeeper.submit(trace)  # schema check → sandbox → dedup → store
@@ -145,6 +173,38 @@ poller = FeedbackPoller(settings=settings)
 handler = AnnotationHandler(poller=poller, gatekeeper=gatekeeper)
 handler.run_loop()  # continuously polls → validates → stores
 ```
+
+### Without LangChain (plain Python)
+
+If you don't use LangChain, you can use the lower-level primitives directly:
+
+```python
+from behavioral_memory.planner.prompt import SYSTEM_PROMPT, build_prompt
+from behavioral_memory.planner.postprocess import postprocess_plan
+
+# Build the prompt yourself
+prompt = build_prompt(query="Get revenue data", traces=my_traces, tool_schemas=my_schemas)
+
+# Call your own LLM
+raw_output = your_llm.chat(system=SYSTEM_PROMPT, user=prompt)
+
+# Parse the JSON plan
+steps = postprocess_plan(raw_output)  # returns list[ToolCall]
+```
+
+---
+
+## Persistence and Limitations
+
+| Store | Persistence | Multi-user | Best for |
+|-------|------------|------------|----------|
+| `InMemoryTraceStore` | Process memory only | No | Dev, CI, demos |
+| `TraceStore` (pgvector) | PostgreSQL, survives restarts | Shared DB, single collection | Production |
+
+**Current limitations:**
+- All traces share one collection (default: `validated_traces`). No per-user or per-session isolation.
+- Langfuse is **optional** — the core framework (planning, retrieval, gatekeeper) works without it.
+- The reference agent at `agent/` is a planning demo with stub tool execution — bring your own tool runtime.
 
 ---
 
@@ -246,6 +306,7 @@ All via environment variables or `.env`:
 | `FEW_SHOT_K` | `3` | Traces to retrieve per query |
 | `MAX_PROMPT_TOKENS` | `3500` | Token budget for prompt |
 | `SIMILARITY_DEDUP_THRESHOLD` | `0.95` | Dedup cosine threshold |
+| `SANDBOX_TIMEOUT_SECONDS` | `30` | Gatekeeper sandbox timeout |
 | `VECTOR_STORE_URL` | — | PostgreSQL connection (only for `TraceStore`) |
 | `LANGFUSE_SECRET_KEY` | — | Langfuse secret (optional) |
 | `LANGFUSE_PUBLIC_KEY` | — | Langfuse public key (optional) |
