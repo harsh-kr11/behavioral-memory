@@ -79,7 +79,7 @@ uv run pytest                              # Run all tests
 ## Running Tests
 
 ```bash
-# All 104 tests (no external services needed)
+# All tests (no external services needed)
 uv run pytest
 
 # With verbose output
