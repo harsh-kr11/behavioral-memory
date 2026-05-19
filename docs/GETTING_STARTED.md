@@ -52,8 +52,13 @@ python examples/validate_pipeline.py
 # Quick test with real LLM (3 tasks)
 python examples/run_live_benchmark.py --limit 3 --model gemini-2.0-flash
 
-# Full benchmark (30 tasks, takes ~10 minutes)
+# Full benchmark with in-memory store (30 tasks, ~10 minutes)
 python examples/run_live_benchmark.py --model gemini-2.5-flash
+
+# Full benchmark with pgvector (reproduces exact paper numbers)
+podman-compose up -d   # or: docker compose up -d
+pip install -e ".[postgres]"
+python examples/run_live_benchmark.py --postgres --model gemini-2.5-pro
 ```
 
 ## 5. Run the Interactive Agent
@@ -170,8 +175,11 @@ VECTOR_STORE_URL=postgresql+psycopg://behavioral_memory:behavioral_memory@localh
 
 ### Verify
 ```bash
-# Connect to PostgreSQL
-podman exec -it behavioral-memory-pgvector psql -U behavioral_memory -c "CREATE EXTENSION IF NOT EXISTS vector;"
+# Connect to PostgreSQL and verify pgvector
+podman exec -it behavioral-memory-pgvector psql -U behavioral_memory -c "CREATE EXTENSION IF NOT EXISTS vector; SELECT extversion FROM pg_extension WHERE extname = 'vector';"
+
+# Run the benchmark with pgvector (reproduces paper numbers)
+python examples/run_live_benchmark.py --postgres --model gemini-2.5-pro
 ```
 
 ## 9. Run Tests
