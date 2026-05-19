@@ -5,6 +5,7 @@ on:
     tags: ["v*"]
 
 permissions:
+  contents: read
   id-token: write
 
 jobs:
@@ -16,3 +17,6 @@ jobs:
       - uses: astral-sh/setup-uv@v4
       - run: uv build
       - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
+
