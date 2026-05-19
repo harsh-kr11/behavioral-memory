@@ -23,7 +23,7 @@ class BenchmarkRunner:
     def __init__(self, tool_schemas: list[ToolSchema]) -> None:
         self._schemas = tool_schemas
 
-    def evaluate_plan(self, plan: Plan, gold_chain: list[dict]) -> dict[str, Any]:
+    def evaluate_plan(self, plan: Plan, gold_chain: list[dict[str, Any]]) -> dict[str, Any]:
         """Evaluate a single plan against its gold tool chain."""
         predicted_chain = [
             {
@@ -37,7 +37,7 @@ class BenchmarkRunner:
     def run(
         self,
         strategy: Any,
-        tasks: list[dict] | None = None,
+        tasks: list[dict[str, Any]] | None = None,
         limit: int | None = None,
     ) -> dict[str, Any]:
         """Run a strategy across all (or a subset of) evaluation tasks.
@@ -64,26 +64,30 @@ class BenchmarkRunner:
                 pcr_results.append(bool(metrics["pcr"]))
                 esa_results.append(bool(metrics["esa"]))
 
-                per_task.append({
-                    "task_id": task["task_id"],
-                    "task": task["task"],
-                    "difficulty": task["difficulty"],
-                    "predicted_steps": [s.model_dump() for s in plan.steps],
-                    "metrics": metrics,
-                })
+                per_task.append(
+                    {
+                        "task_id": task["task_id"],
+                        "task": task["task"],
+                        "difficulty": task["difficulty"],
+                        "predicted_steps": [s.model_dump() for s in plan.steps],
+                        "metrics": metrics,
+                    }
+                )
             except Exception as e:
                 logger.warning("Task %d failed: %s", task["task_id"], e)
                 tsa_results.append(False)
                 pv_values.append(0.0)
                 pcr_results.append(False)
                 esa_results.append(False)
-                per_task.append({
-                    "task_id": task["task_id"],
-                    "task": task["task"],
-                    "difficulty": task["difficulty"],
-                    "error": str(e),
-                    "metrics": {"tsa": False, "pv": 0.0, "pcr": False, "esa": False},
-                })
+                per_task.append(
+                    {
+                        "task_id": task["task_id"],
+                        "task": task["task"],
+                        "difficulty": task["difficulty"],
+                        "error": str(e),
+                        "metrics": {"tsa": False, "pv": 0.0, "pcr": False, "esa": False},
+                    }
+                )
 
         n = len(eval_tasks)
         tsa_mean, tsa_lo, tsa_hi = bootstrap_ci(tsa_results)
@@ -121,14 +125,14 @@ class BenchmarkRunner:
         }
 
     @staticmethod
-    def results_by_difficulty(results: dict[str, Any]) -> dict[str, dict]:
+    def results_by_difficulty(results: dict[str, Any]) -> dict[str, dict[str, Any]]:
         """Break down results by difficulty tier."""
-        by_diff: dict[str, list[dict]] = {}
+        by_diff: dict[str, list[dict[str, Any]]] = {}
         for task in results["per_task"]:
             diff = task["difficulty"]
             by_diff.setdefault(diff, []).append(task)
 
-        summary: dict[str, dict] = {}
+        summary: dict[str, dict[str, Any]] = {}
         for diff, tasks in by_diff.items():
             pcr_list = [bool(t["metrics"]["pcr"]) for t in tasks]
             esa_list = [bool(t["metrics"]["esa"]) for t in tasks]

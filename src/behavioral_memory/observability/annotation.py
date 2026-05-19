@@ -40,9 +40,7 @@ class AnnotationHandler:
         self._poller = poller
         self._gatekeeper = gatekeeper
 
-    def process_feedback(
-        self, traces: list[ExecutionTrace] | None = None
-    ) -> FeedbackStats:
+    def process_feedback(self, traces: list[ExecutionTrace] | None = None) -> FeedbackStats:
         """Process a batch of traces through the gatekeeper.
 
         If traces are not provided, polls Langfuse for positive ones.
@@ -57,25 +55,16 @@ class AnnotationHandler:
                 result = self._gatekeeper.submit(trace)
                 if result.accepted:
                     stats.accepted += 1
-                    stats.details.append(
-                        f"Accepted: {trace.task_description[:60]}"
-                    )
+                    stats.details.append(f"Accepted: {trace.task_description[:60]}")
                 elif result.is_duplicate:
                     stats.rejected_duplicate += 1
-                    stats.details.append(
-                        f"Duplicate: {trace.task_description[:60]}"
-                    )
+                    stats.details.append(f"Duplicate: {trace.task_description[:60]}")
                 elif not result.schema_valid:
                     stats.rejected_validation += 1
-                    stats.details.append(
-                        f"Invalid: {trace.task_description[:60]} — "
-                        f"{', '.join(result.failures)}"
-                    )
+                    stats.details.append(f"Invalid: {trace.task_description[:60]} — {', '.join(result.failures)}")
                 elif not result.sandbox_passed:
                     stats.rejected_sandbox += 1
-                    stats.details.append(
-                        f"Sandbox fail: {trace.task_description[:60]}"
-                    )
+                    stats.details.append(f"Sandbox fail: {trace.task_description[:60]}")
             except Exception as e:
                 stats.errors += 1
                 logger.warning("Error processing trace: %s", e)

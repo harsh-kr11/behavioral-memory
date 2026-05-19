@@ -19,11 +19,13 @@ def execute_tools(state: AgentState) -> dict:
 
     results: list[dict[str, Any]] = []
     for step in plan.steps:
-        results.append({
-            "step_id": step.step_id,
-            "tool_name": step.tool_name,
-            "status": "executed_stub",
-            "parameters": step.parameters,
-        })
+        results.append(
+            {
+                "step_id": step.step_id,
+                "tool_name": step.tool_name,
+                "status": "executed_stub",
+                "parameters": step.parameters,
+            }
+        )
 
     return {"execution_results": results}

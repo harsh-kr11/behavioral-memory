@@ -1,14 +1,15 @@
 """Evaluation metrics from the paper (Section IV.C).
 
-  TSA — Tool Selection Accuracy: correct identification of required tools
-  PV  — Parameter Validity: correct specification of key parameters
-  PCR — Plan Correctness Rate: correct tools AND >=80% parameter accuracy
-  ESA — Execution Sequence Accuracy: correct ordering of tool calls
+TSA — Tool Selection Accuracy: correct identification of required tools
+PV  — Parameter Validity: correct specification of key parameters
+PCR — Plan Correctness Rate: correct tools AND >=80% parameter accuracy
+ESA — Execution Sequence Accuracy: correct ordering of tool calls
 """
 
 from __future__ import annotations
 
 from collections import Counter
+from typing import Any
 
 
 def tool_selection_accuracy(predicted_tools: list[str], gold_tools: list[str]) -> bool:
@@ -16,9 +17,7 @@ def tool_selection_accuracy(predicted_tools: list[str], gold_tools: list[str]) -
     return Counter(predicted_tools) == Counter(gold_tools)
 
 
-def parameter_validity(
-    predicted_params: list[dict], gold_params: list[dict]
-) -> float:
+def parameter_validity(predicted_params: list[dict[str, Any]], gold_params: list[dict[str, Any]]) -> float:
     """PV: fraction of key parameters correctly specified.
 
     Compares parameter keys step-by-step. If step counts differ, missing
@@ -46,8 +45,8 @@ def parameter_validity(
 def plan_correctness(
     predicted_tools: list[str],
     gold_tools: list[str],
-    predicted_params: list[dict],
-    gold_params: list[dict],
+    predicted_params: list[dict[str, Any]],
+    gold_params: list[dict[str, Any]],
     pv_threshold: float = 0.8,
 ) -> bool:
     """PCR: correct tools AND parameter validity >= threshold."""
@@ -56,16 +55,12 @@ def plan_correctness(
     return tsa and pv >= pv_threshold
 
 
-def execution_sequence_accuracy(
-    predicted_tools: list[str], gold_tools: list[str]
-) -> bool:
+def execution_sequence_accuracy(predicted_tools: list[str], gold_tools: list[str]) -> bool:
     """ESA: are tools in the correct order?"""
     return predicted_tools == gold_tools
 
 
-def compute_metrics(
-    predicted_chain: list[dict], gold_chain: list[dict]
-) -> dict[str, float | bool]:
+def compute_metrics(predicted_chain: list[dict[str, Any]], gold_chain: list[dict[str, Any]]) -> dict[str, float | bool]:
     """Compute all four metrics for a single task."""
     pred_tools = [s.get("tool", s.get("tool_name", "")) for s in predicted_chain]
     gold_tools = [s.get("tool", s.get("tool_name", "")) for s in gold_chain]

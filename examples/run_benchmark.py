@@ -68,9 +68,9 @@ def main():
         sf = static["aggregate"][metric]
         dy = dynamic["aggregate"][metric]
 
-        zs_str = f"{zs['mean']:.1%}" if isinstance(zs['mean'], float) else f"{zs['mean']}"
-        sf_str = f"{sf['mean']:.1%}" if isinstance(sf['mean'], float) else f"{sf['mean']}"
-        dy_str = f"{dy['mean']:.1%}" if isinstance(dy['mean'], float) else f"{dy['mean']}"
+        zs_str = f"{zs['mean']:.1%}" if isinstance(zs["mean"], float) else f"{zs['mean']}"
+        sf_str = f"{sf['mean']:.1%}" if isinstance(sf["mean"], float) else f"{sf['mean']}"
+        dy_str = f"{dy['mean']:.1%}" if isinstance(dy["mean"], float) else f"{dy['mean']}"
 
         table.add_row(metric.upper(), zs_str, sf_str, dy_str)
 

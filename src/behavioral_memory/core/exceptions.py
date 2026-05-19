@@ -1,5 +1,9 @@
 """Custom exception hierarchy for behavioral-memory."""
 
+from __future__ import annotations
+
+from typing import Any
+
 
 class BehavioralMemoryError(Exception):
     """Base exception for all behavioral-memory errors."""
@@ -20,7 +24,7 @@ class TraceValidationError(BehavioralMemoryError):
 class GatekeeperRejectionError(BehavioralMemoryError):
     """Raised when the gatekeeper pipeline rejects a trace."""
 
-    def __init__(self, message: str, stage: str, details: dict | None = None) -> None:
+    def __init__(self, message: str, stage: str, details: dict[str, Any] | None = None) -> None:
         super().__init__(message)
         self.stage = stage
         self.details = details or {}

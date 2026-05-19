@@ -66,23 +66,29 @@ def make_mock_llm(gold_tasks):
         if best_match:
             steps = []
             for i, gold_step in enumerate(best_match["gold_tool_chain"]):
-                steps.append({
-                    "step_id": f"step_{i + 1}",
-                    "tool_name": gold_step["tool"],
-                    "parameters": gold_step["params"],
-                    "depends_on": [f"step_{j + 1}" for j in range(i)],
-                })
+                steps.append(
+                    {
+                        "step_id": f"step_{i + 1}",
+                        "tool_name": gold_step["tool"],
+                        "parameters": gold_step["params"],
+                        "depends_on": [f"step_{j + 1}" for j in range(i)],
+                    }
+                )
             response = MagicMock()
             response.content = json.dumps(steps)
             return response
 
         response = MagicMock()
-        response.content = json.dumps([{
-            "step_id": "step_1",
-            "tool_name": "data_fetch",
-            "parameters": {"source": "default"},
-            "depends_on": [],
-        }])
+        response.content = json.dumps(
+            [
+                {
+                    "step_id": "step_1",
+                    "tool_name": "data_fetch",
+                    "parameters": {"source": "default"},
+                    "depends_on": [],
+                }
+            ]
+        )
         return response
 
     llm = MagicMock()
@@ -91,12 +97,14 @@ def make_mock_llm(gold_tasks):
 
 
 def main() -> None:
-    console.print(Panel.fit(
-        "[bold]Pipeline Validation — Full End-to-End Check[/bold]\n\n"
-        "Tests every component with mock services.\n"
-        "No API keys or external services needed.",
-        title="Validation",
-    ))
+    console.print(
+        Panel.fit(
+            "[bold]Pipeline Validation — Full End-to-End Check[/bold]\n\n"
+            "Tests every component with mock services.\n"
+            "No API keys or external services needed.",
+            title="Validation",
+        )
+    )
 
     from behavioral_memory.core.config import Settings
     from behavioral_memory.evaluation.benchmark import BenchmarkRunner
@@ -148,11 +156,7 @@ def main() -> None:
     check("Three difficulty tiers", difficulties == {"simple", "moderate", "challenging"})
     check(
         "All gold chains reference known tools",
-        all(
-            step["tool"] in registry._tools
-            for task in EVALUATION_TASKS
-            for step in task["gold_tool_chain"]
-        ),
+        all(step["tool"] in registry._tools for task in EVALUATION_TASKS for step in task["gold_tool_chain"]),
     )
 
     # --- 4. InMemoryTraceStore ---
@@ -184,7 +188,9 @@ def main() -> None:
     check("Zero-shot has no retrieved traces", len(zs_plan.retrieved_traces) == 0)
 
     static_plan = engine.generate_static_few_shot(
-        "Build a revenue analysis pipeline", schemas, seed_traces[:3],
+        "Build a revenue analysis pipeline",
+        schemas,
+        seed_traces[:3],
     )
     check("Static few-shot works", len(static_plan.steps) > 0)
     check("Static uses provided traces", len(static_plan.retrieved_traces) == 3)
@@ -214,8 +220,11 @@ def main() -> None:
     console.print("\n[bold cyan]7. Gatekeeper Pipeline[/bold cyan]")
     gk = GatekeeperPipeline(store=store, registry=registry)
     gk_result = gk.evaluate(seed_traces[0])
-    check("Gatekeeper accepts valid trace", gk_result.accepted or gk_result.is_duplicate,
-          f"rejected: {gk_result.rejection_reason}")
+    check(
+        "Gatekeeper accepts valid trace",
+        gk_result.accepted or gk_result.is_duplicate,
+        f"rejected: {gk_result.rejection_reason}",
+    )
 
     # --- 8. Langfuse offline ---
     console.print("\n[bold cyan]8. Langfuse Tracer (offline)[/bold cyan]")
@@ -244,8 +253,7 @@ def main() -> None:
         )
 
     console.print(table)
-    console.print("[dim]Note: These numbers are from a mock LLM — run with a real "
-                  "API key for actual results.[/dim]")
+    console.print("[dim]Note: These numbers are from a mock LLM — run with a real API key for actual results.[/dim]")
 
     # --- Summary ---
     console.print(f"\n{'=' * 50}")

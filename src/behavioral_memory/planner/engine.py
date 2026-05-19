@@ -115,6 +115,4 @@ class PlanEngine:
         static_traces: list[ExecutionTrace],
     ) -> Plan:
         """Generate a plan with fixed static examples (baseline)."""
-        return self.generate(
-            query=query, tool_schemas=tool_schemas, traces=static_traces
-        )
+        return self.generate(query=query, tool_schemas=tool_schemas, traces=static_traces)

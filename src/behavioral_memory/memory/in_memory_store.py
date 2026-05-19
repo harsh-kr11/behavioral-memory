@@ -13,6 +13,7 @@ Deduplicator, and the full pipeline work identically.
 from __future__ import annotations
 
 import logging
+from typing import Any
 
 import numpy as np
 from langchain_core.embeddings import Embeddings
@@ -39,9 +40,7 @@ class InMemoryTraceStore:
         self._traces: list[ExecutionTrace] = []
         self._vectors: list[list[float]] = []
 
-    def search(
-        self, query: str, k: int | None = None
-    ) -> list[tuple[ExecutionTrace, float]]:
+    def search(self, query: str, k: int | None = None) -> list[tuple[ExecutionTrace, float]]:
         k = k or self._settings.few_shot_k
         if not self._traces:
             return []
@@ -79,9 +78,7 @@ class InMemoryTraceStore:
         return len(self._traces)
 
     @staticmethod
-    def _cosine_similarities(
-        query_vec: list[float], doc_vecs: list[list[float]]
-    ) -> np.ndarray:
+    def _cosine_similarities(query_vec: list[float], doc_vecs: list[list[float]]) -> Any:
         q = np.array(query_vec)
         d = np.array(doc_vecs)
         q_norm = q / (np.linalg.norm(q) + 1e-10)

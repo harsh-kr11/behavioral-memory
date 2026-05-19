@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+from typing import Any
 
 from behavioral_memory.core.exceptions import PlanGenerationError
 from behavioral_memory.core.schemas import ToolCall
@@ -16,7 +17,7 @@ from behavioral_memory.core.schemas import ToolCall
 logger = logging.getLogger(__name__)
 
 
-def extract_json_array(raw: str) -> list[dict]:
+def extract_json_array(raw: str) -> list[dict[str, Any]]:
     """Extract a JSON array from raw LLM output."""
     text = raw.strip()
 
@@ -42,7 +43,7 @@ def extract_json_array(raw: str) -> list[dict]:
     return parsed
 
 
-def parse_tool_calls(raw_steps: list[dict]) -> list[ToolCall]:
+def parse_tool_calls(raw_steps: list[dict[str, Any]]) -> list[ToolCall]:
     """Convert raw JSON steps into validated ToolCall models."""
     calls: list[ToolCall] = []
     for i, step in enumerate(raw_steps):

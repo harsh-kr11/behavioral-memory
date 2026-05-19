@@ -37,9 +37,11 @@ def create_agent(model: str = "gemini-2.5-pro", use_postgres: bool = False):
 
     if use_postgres:
         from behavioral_memory.memory.store import TraceStore
+
         store = TraceStore(embeddings=embeddings, settings=settings)
     else:
         from behavioral_memory.memory.in_memory_store import InMemoryTraceStore
+
         store = InMemoryTraceStore(embeddings=embeddings, settings=settings)
 
     registry = ToolRegistry()
@@ -50,7 +52,10 @@ def create_agent(model: str = "gemini-2.5-pro", use_postgres: bool = False):
     store.add_bulk(seed_traces)
 
     graph = build_agent_graph(
-        llm=llm, store=store, registry=registry, settings=settings,
+        llm=llm,
+        store=store,
+        registry=registry,
+        settings=settings,
     )
 
     return graph, store, registry, tracer, settings
@@ -102,17 +107,19 @@ def run_single(query: str, model: str = "gemini-2.5-pro", verbose: bool = True) 
 
 def run_interactive(model: str = "gemini-2.5-pro") -> None:
     """Interactive REPL — type queries, see plans, compare with/without memory."""
-    console.print(Panel.fit(
-        "[bold]Behavioral Memory Agent — Interactive Mode[/bold]\n\n"
-        f"Model: {model}\n"
-        "Type a query to generate a plan. The agent retrieves relevant\n"
-        "traces from behavioral memory to guide its planning.\n\n"
-        "Special commands:\n"
-        "  /compare <query>  — run with AND without memory, show difference\n"
-        "  /memory            — show what's in behavioral memory\n"
-        "  /quit              — exit",
-        title="Interactive Agent",
-    ))
+    console.print(
+        Panel.fit(
+            "[bold]Behavioral Memory Agent — Interactive Mode[/bold]\n\n"
+            f"Model: {model}\n"
+            "Type a query to generate a plan. The agent retrieves relevant\n"
+            "traces from behavioral memory to guide its planning.\n\n"
+            "Special commands:\n"
+            "  /compare <query>  — run with AND without memory, show difference\n"
+            "  /memory            — show what's in behavioral memory\n"
+            "  /quit              — exit",
+            title="Interactive Agent",
+        )
+    )
 
     graph, store, registry, tracer, settings = create_agent(model=model)
     compiled = graph.compile()
@@ -132,6 +139,7 @@ def run_interactive(model: str = "gemini-2.5-pro") -> None:
 
         if query.startswith("/memory"):
             from behavioral_memory.evaluation.seed_traces import get_seed_traces
+
             for trace in get_seed_traces():
                 tools = " → ".join(trace.tool_names)
                 console.print(f"  [cyan]{trace.task_description[:60]}[/cyan]")
@@ -167,7 +175,7 @@ def _run_comparison(compiled, query, store, registry, settings, tracer):
     from behavioral_memory.planner.prompt import build_prompt
     from behavioral_memory.tools.mock_tools import get_tool_schemas
 
-    console.print(f"\n[bold]Comparing: \"{query}\"[/bold]\n")
+    console.print(f'\n[bold]Comparing: "{query}"[/bold]\n')
 
     result_with = compiled.invoke({"query": query})
     plan_with = result_with.get("plan")
