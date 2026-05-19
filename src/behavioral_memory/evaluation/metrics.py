@@ -14,14 +14,27 @@ from typing import Any
 # Parameters that reflect orchestration decisions (the paper's focus).
 # These control HOW tools connect and what structural choices are made.
 _ORCHESTRATION_PARAMS = {
-    "source_step", "format", "channel", "target", "mode", "operation",
-    "interval", "notify_on_failure", "attach_step", "method", "how",
+    "source_step",
+    "format",
+    "channel",
+    "target",
+    "mode",
+    "operation",
+    "interval",
+    "notify_on_failure",
+    "attach_step",
+    "method",
+    "how",
 }
 
 # Identifier params: orchestration-relevant but naming conventions vary.
 # Evaluated with lenient matching (key-term overlap).
 _IDENTIFIER_PARAMS = {
-    "recipient", "target_name", "task_name", "workflow_steps", "params",
+    "recipient",
+    "target_name",
+    "task_name",
+    "workflow_steps",
+    "params",
 }
 
 # Parameters that are free-form content the LLM fills in.
@@ -184,11 +197,51 @@ def _text_overlap_match(pred: str, gold: str) -> bool:
     import re
 
     stop_words = {
-        "the", "a", "an", "is", "are", "was", "were", "be", "been", "has",
-        "have", "had", "do", "does", "did", "will", "would", "could", "should",
-        "may", "might", "and", "or", "but", "if", "of", "to", "in", "for",
-        "on", "at", "by", "with", "from", "that", "this", "it", "its",
-        "please", "find", "attached", "latest", "ready", "report", "data",
+        "the",
+        "a",
+        "an",
+        "is",
+        "are",
+        "was",
+        "were",
+        "be",
+        "been",
+        "has",
+        "have",
+        "had",
+        "do",
+        "does",
+        "did",
+        "will",
+        "would",
+        "could",
+        "should",
+        "may",
+        "might",
+        "and",
+        "or",
+        "but",
+        "if",
+        "of",
+        "to",
+        "in",
+        "for",
+        "on",
+        "at",
+        "by",
+        "with",
+        "from",
+        "that",
+        "this",
+        "it",
+        "its",
+        "please",
+        "find",
+        "attached",
+        "latest",
+        "ready",
+        "report",
+        "data",
     }
 
     def key_terms(s: str) -> set[str]:
@@ -205,12 +258,12 @@ def _structure_match(predicted: object, gold: object) -> bool:
     """For list/dict params, check structural presence."""
     if type(predicted) is not type(gold):
         return False
-    if isinstance(gold, dict):
-        gold_keys = set(gold.keys())  # type: ignore[union-attr]
-        pred_keys = set(predicted.keys())  # type: ignore[union-attr]
+    if isinstance(gold, dict) and isinstance(predicted, dict):
+        gold_keys = set(gold.keys())
+        pred_keys = set(predicted.keys())
         return bool(gold_keys & pred_keys)
-    if isinstance(gold, list):
-        if len(gold) == 0:  # type: ignore[arg-type]
+    if isinstance(gold, list) and isinstance(predicted, list):
+        if len(gold) == 0:
             return True
-        return len(predicted) > 0  # type: ignore[arg-type]
+        return len(predicted) > 0
     return predicted == gold
