@@ -129,12 +129,17 @@ class TraceStore:
             raise MemoryStoreError(f"Bulk add failed: {e}") from e
 
     def similarity_score(self, query: str) -> float:
-        """Return the highest similarity score for a query against the store."""
+        """Return the highest cosine similarity (0-1) for a query.
+
+        PGVector returns cosine *distance* (0 = identical, 2 = opposite).
+        We convert to similarity (1 - distance) so the Deduplicator's
+        threshold (default 0.95) works consistently across both stores.
+        """
         results = self.vectorstore.similarity_search_with_score(query, k=1)
         if not results:
             return 0.0
-        _, score = results[0]
-        return float(score)
+        _, distance = results[0]
+        return max(0.0, 1.0 - float(distance))
 
     def count(self) -> int:
         """Approximate count of traces in the store."""

@@ -11,21 +11,26 @@ from __future__ import annotations
 from collections import Counter
 from typing import Any
 
-# Parameters that reflect orchestration decisions (the paper's focus).
+# Orchestration parameters — the paper's primary focus (Section IV.C).
 # These control HOW tools connect and what structural choices are made.
-_ORCHESTRATION_PARAMS = {
-    "source_step",
-    "format",
-    "channel",
-    "target",
-    "mode",
-    "operation",
-    "interval",
-    "notify_on_failure",
-    "attach_step",
-    "method",
-    "how",
-}
+# They use exact match (after normalization) in _param_matches, as does
+# any param key not listed in _CONTENT_PARAMS or _IDENTIFIER_PARAMS.
+# This set documents which keys are orchestration-relevant for clarity.
+ORCHESTRATION_PARAMS = frozenset(
+    {
+        "source_step",
+        "format",
+        "channel",
+        "target",
+        "mode",
+        "operation",
+        "interval",
+        "notify_on_failure",
+        "attach_step",
+        "method",
+        "how",
+    }
+)
 
 # Identifier params: orchestration-relevant but naming conventions vary.
 # Evaluated with lenient matching (key-term overlap).
@@ -109,9 +114,12 @@ def compute_metrics(predicted_chain: list[dict[str, Any]], gold_chain: list[dict
 def _param_matches(predicted: object, gold: object, key: str = "") -> bool:
     """Compare a single parameter value.
 
-    Orchestration params use exact match (after normalization).
-    Content params (SQL, prose) use lenient semantic comparison
-    because the paper evaluates orchestration, not content authoring.
+    Routing logic:
+      - Content params (SQL, prose): lenient semantic comparison
+      - Identifier params (names, recipients): lenient key-term overlap
+      - Orchestration params + everything else: exact match after normalization
+
+    The paper evaluates orchestration decisions, not content authoring.
     """
     if predicted is None:
         return False
@@ -122,6 +130,10 @@ def _param_matches(predicted: object, gold: object, key: str = "") -> bool:
     if key in _IDENTIFIER_PARAMS:
         return _content_param_matches(predicted, gold)
 
+    # Orchestration params and any unlisted params: exact match.
+    # _ORCHESTRATION_PARAMS documents which keys fall here (source_step,
+    # format, channel, target, mode, etc.) but all non-content,
+    # non-identifier params use exact match regardless.
     if isinstance(gold, str) and isinstance(predicted, str):
         return _normalize_str(predicted) == _normalize_str(gold)
 
@@ -173,8 +185,9 @@ def _looks_like_sql(s: str) -> bool:
 
 
 def _sql_structural_match(pred: str, gold: str) -> bool:
-    """Check SQL structural equivalence: same tables and same aggregate functions.
+    """Check SQL structural equivalence via shared table names.
 
+    Extracts tables from FROM/JOIN clauses and checks for overlap.
     Aliases, column order, ORDER BY, and formatting are ignored — the
     orchestration question is "did it query the right data source?"
     """
