@@ -11,117 +11,186 @@ disable-model-invocation: true
 
 # Behavioral Memory Integration
 
-Add validated execution trace retrieval to any LLM agent in under 50 lines.
-The library stores task-to-tool-chain mappings and retrieves semantically
-similar ones at query time so the agent learns from past successes.
+Add validated execution trace retrieval to any LLM agent. The library stores
+task-to-tool-chain mappings and retrieves semantically similar ones at query
+time so the agent learns from past successes.
 
-## Install
+## Step 0 — Analyse the target agent
 
-```bash
-pip install behavioral-memory                    # in-memory store (no DB)
-pip install "behavioral-memory[postgres]"        # pgvector persistence
+Before writing any code, scan the agent's codebase and classify its setup.
+Check for these four signals:
+
+```
+Checklist:
+- [ ] PostgreSQL: look for connection strings, SQLAlchemy, asyncpg, psycopg,
+      PGVector, AsyncPostgresSaver, or DATABASE_URL in env/config
+- [ ] Langfuse: look for langfuse imports, CallbackHandler, create_score,
+      client.score, LANGFUSE_SECRET_KEY in env/config
+- [ ] Feedback endpoint: look for thumbs-up/down routes, /feedback, score
+      submission, user rating handlers
+- [ ] Tools: list all @tool functions, ToolNode, MCP servers, tool arrays
 ```
 
-## Prerequisites (check before starting)
+Based on what you find, follow the matching path:
 
-| Need | Why |
-|------|-----|
-| A LangChain-compatible LLM (`BaseChatModel`) | PlanEngine calls it |
-| A LangChain-compatible `Embeddings` model | Vector similarity search |
-| Python 3.11+ | Library requirement |
-| PostgreSQL + pgvector (optional) | Persistent `TraceStore` |
-| Langfuse account (optional) | Feedback loop |
+**Path A → Production agent (has PostgreSQL + Langfuse + feedback)**
+Examples: enterprise agents with RAG, MCP tools, thumbs-up/down UI.
+Follow: Install → Path A setup → Seed → Wire feedback → Inject into prompt
 
-## Quick Integration (3 steps)
+**Path B → Agent with PostgreSQL but no Langfuse**
+Examples: agents using pgvector for RAG but no observability.
+Follow: Install → Path B setup → Seed → Inject into prompt
 
-### Step 1 — Create store + engine
+**Path C → Lightweight agent (no PostgreSQL, no Langfuse)**
+Examples: simple ReAct scripts, demos, prototypes, CLI agents.
+Follow: Install → Path C setup → Seed → Inject into prompt
+
+---
+
+## Step 1 — Install
+
+```bash
+# Path A or B (agent has PostgreSQL):
+pip install "behavioral-memory[postgres]"
+
+# Path C (no PostgreSQL):
+pip install behavioral-memory
+```
+
+---
+
+## Step 2 — Set up store and registry (pick your path)
+
+### Path A: Production (PostgreSQL + Langfuse + Feedback)
+
+The agent already has a PostgreSQL connection. Reuse it for behavioral memory.
+Find the existing connection string (e.g. `DATABASE_URL`, `rag_pg_conn`,
+`POSTGRES_CONNECTION_STRING`) and use it.
 
 ```python
-from behavioral_memory import InMemoryTraceStore, PlanEngine, ToolRegistry, ToolSchema
+from behavioral_memory import TraceStore, ToolRegistry, ToolSchema, Settings
 
-store = InMemoryTraceStore(embeddings=your_embeddings)
+# Reuse the agent's existing PostgreSQL connection
+store = TraceStore(
+    embeddings=your_embeddings,  # reuse agent's existing embeddings model
+    connection_url=existing_pg_connection_string,  # from agent's config
+    collection_name="behavioral_traces",  # new collection, won't conflict
+)
+
 registry = ToolRegistry()
 
-# Register every tool your agent has
-for tool in your_agent_tools:
+# Register ALL tools the agent has (iterate over the agent's tool list)
+for tool in agent_tools:
     registry.register(ToolSchema(
         name=tool.name,
         description=tool.description,
         parameters_schema=tool.args_schema.model_json_schema() if tool.args_schema else {},
     ))
-
-engine = PlanEngine(llm=your_llm, store=store, registry=registry)
 ```
 
-### Step 2 — Seed domain knowledge
+**Persistence**: the `behavioral_traces` collection is created once and persists
+across deployments. It does NOT recreate on restart. Dedup (cosine >= 0.95)
+prevents storing the same trace twice.
+
+### Path B: PostgreSQL, no Langfuse
+
+Same as Path A for store setup. Skip the feedback wiring in Step 4.
 
 ```python
-from behavioral_memory import ExecutionTrace, ToolCall
-
-store.add(ExecutionTrace(
-    task_description="your natural language task here",
-    tool_chain=[
-        ToolCall(step_id="s1", tool_name="tool_a", parameters={"key": "val"}),
-        ToolCall(step_id="s2", tool_name="tool_b", parameters={"source_step": "s1"}),
-    ],
-    source="seed",
-))
-```
-
-### Step 3 — Generate plans with memory
-
-```python
-plan = engine.generate(query="user's task description")
-for step in plan.steps:
-    print(f"{step.step_id}: {step.tool_name}({step.parameters})")
-```
-
-## Persistence — pgvector (production)
-
-`TraceStore` persists traces across restarts. The collection name is stable
-— it does NOT recreate on every deployment. Deduplication (cosine >= 0.95)
-prevents the same trace from being stored twice.
-
-```python
-from behavioral_memory import TraceStore  # requires [postgres] extra
+from behavioral_memory import TraceStore, ToolRegistry, ToolSchema
 
 store = TraceStore(
     embeddings=your_embeddings,
-    connection_url="postgresql+psycopg://user:pass@host:5432/dbname",
-    collection_name="validated_traces",  # stable across deploys
+    connection_url=existing_pg_connection_string,
+    collection_name="behavioral_traces",
 )
+
+registry = ToolRegistry()
+for tool in agent_tools:
+    registry.register(ToolSchema(
+        name=tool.name,
+        description=tool.description,
+        parameters_schema=tool.args_schema.model_json_schema() if tool.args_schema else {},
+    ))
 ```
 
-**Critical**: both `InMemoryTraceStore` and `TraceStore` expose the same API
-(`search`, `add`, `add_bulk`, `similarity_score`, `count`). Swap freely.
+### Path C: Lightweight (no PostgreSQL)
 
-## Gatekeeper — validate before storing
-
-Never store unvalidated traces. The gatekeeper runs three gates:
-
-1. **Schema validation** — tools exist, required params present, deps valid
-2. **Sandbox execution** — dry-run data-flow check with timeout
-3. **Semantic dedup** — cosine similarity >= 0.95 → rejected
+Uses in-memory store. Traces are lost on restart — seed on every startup.
 
 ```python
-from behavioral_memory import GatekeeperPipeline
+from behavioral_memory import InMemoryTraceStore, ToolRegistry, ToolSchema
 
-gatekeeper = GatekeeperPipeline(store=store, registry=registry)
-result = gatekeeper.submit(trace)  # validates AND stores if accepted
-# result.accepted, result.schema_valid, result.is_duplicate
+store = InMemoryTraceStore(embeddings=your_embeddings)
+
+registry = ToolRegistry()
+for tool in agent_tools:
+    registry.register(ToolSchema(
+        name=tool.name,
+        description=tool.description,
+        parameters_schema=tool.args_schema.model_json_schema() if tool.args_schema else {},
+    ))
 ```
 
-## Feedback Loop — learn from thumbs-up (Langfuse v4+)
+---
 
-Wire your existing feedback endpoint to behavioral memory. When a user
-gives thumbs-up, capture the trace and feed it through the gatekeeper.
+## Step 3 — Seed domain knowledge
 
-### Option A: Direct capture in your feedback handler
+Create traces that encode your agent's best practices. Look at the agent's
+tools and think: "what are the ideal multi-step workflows?"
 
 ```python
 from behavioral_memory import ExecutionTrace, ToolCall, GatekeeperPipeline
 
-async def on_positive_feedback(run_id: str, user_query: str, tool_calls: list):
+gatekeeper = GatekeeperPipeline(store=store, registry=registry)
+
+# For Path A/B: only seed if collection is empty (first deploy)
+if store.count() == 0:
+    seed_traces = [
+        ExecutionTrace(
+            task_description="describe the task in natural language",
+            tool_chain=[
+                ToolCall(step_id="s1", tool_name="actual_tool_name",
+                         parameters={"param": "value"}),
+                ToolCall(step_id="s2", tool_name="another_tool",
+                         parameters={"source_step": "s1"}),
+            ],
+            source="seed",
+        ),
+        # Add 3-5 traces covering the agent's core workflows
+    ]
+    for trace in seed_traces:
+        result = gatekeeper.submit(trace)  # validates before storing
+
+# For Path C: always seed (in-memory resets on restart)
+```
+
+**Tip**: study the agent's tools and create traces that show the correct
+tool ordering, parameter patterns, and dependencies for common tasks.
+
+---
+
+## Step 4 — Wire feedback loop (Path A only)
+
+Path A agents have Langfuse + a feedback endpoint. Wire positive feedback
+into behavioral memory so the agent learns from real user approvals.
+
+### Find the feedback endpoint
+
+Search for the existing feedback handler (e.g. `/feedback`, `/v1/feedback`,
+`score`, `thumbs`). It typically calls `langfuse_client.create_score()` or
+`langfuse_client.score()`.
+
+### Add behavioral memory capture
+
+In that handler, after the existing Langfuse score call, add:
+
+```python
+from behavioral_memory import ExecutionTrace, ToolCall
+
+# When score indicates positive feedback (thumbs up):
+if score_value >= 1.0:
+    # Extract tool calls from the Langfuse trace or from your agent's state
     trace = ExecutionTrace(
         task_description=user_query,
         tool_chain=[
@@ -130,16 +199,25 @@ async def on_positive_feedback(run_id: str, user_query: str, tool_calls: list):
                 tool_name=tc["name"],
                 parameters=tc.get("args", {}),
             )
-            for i, tc in enumerate(tool_calls)
+            for i, tc in enumerate(tool_calls_from_run)
         ],
         source="feedback",
         metadata={"run_id": run_id},
     )
-    result = gatekeeper.submit(trace)
-    return result.accepted
+    gatekeeper.submit(trace)
 ```
 
-### Option B: Poll Langfuse for positively scored traces
+### Langfuse v4+ API compatibility
+
+The library uses `client.api.trace.list()` and `client.api.scores.list()`
+(Langfuse SDK v4). Both `client.create_score()` and `client.score()` write
+to the same store — the poller reads them correctly. **Critical**: the
+`feedback_score_name` setting MUST match exactly what your agent sends as
+the score `name` parameter.
+
+### Alternative: Background Langfuse poller
+
+Instead of modifying the feedback handler, poll Langfuse periodically:
 
 ```python
 from behavioral_memory import FeedbackPoller, AnnotationHandler, Settings
@@ -148,84 +226,117 @@ settings = Settings(
     langfuse_secret_key="sk-lf-...",
     langfuse_public_key="pk-lf-...",
     langfuse_host="https://us.cloud.langfuse.com",
-    feedback_score_name="user_feedback",     # must match your Langfuse score name
-    feedback_positive_threshold=1.0,         # score >= this = positive
+    feedback_score_name="user_feedback",  # MUST match your score name
+    feedback_positive_threshold=1.0,
 )
 
 poller = FeedbackPoller(settings=settings)
 handler = AnnotationHandler(poller=poller, gatekeeper=gatekeeper)
-handler.run_once()  # single poll cycle
-# handler.run_loop()  # continuous background polling
+handler.run_once()  # or handler.run_loop() as background task
 ```
 
-### Langfuse v4+ compatibility
+---
 
-The library uses `client.api.trace.list()` and `client.api.scores.list()`
-(Langfuse SDK v4 API). If your agent logs scores via `client.create_score()`
-or `client.score()`, the poller reads them correctly. The key mapping:
+## Step 5 — Inject traces into the agent's prompt
 
-| Your agent sends | Poller reads |
-|---|---|
-| `client.create_score(trace_id=run_id, name="user_feedback", value=1)` | `score.name == settings.feedback_score_name` |
-| `client.score(trace_id=run_id, name="quality", value=1)` | Same — both APIs write to the same store |
+This is where behavioral memory actually helps the agent. Pick the method
+that fits how the agent is built:
 
-## Injecting traces into a ReAct agent prompt
+### Method 1: Add a graph node (for LangGraph StateGraph agents)
 
-If you don't use `PlanEngine` and want to inject traces into your own prompt:
+Add a `retrieve_memory` node BEFORE the LLM node:
 
 ```python
-from behavioral_memory.planner.prompt import build_prompt, SYSTEM_PROMPT
+from behavioral_memory.memory.token_budget import select_traces_within_budget
+from langchain_core.messages import SystemMessage
+
+def retrieve_memory(state):
+    user_msg = state["messages"][-1].content
+    traces = select_traces_within_budget(
+        store=store, query=user_msg, tool_schemas=registry.list_tools()
+    )
+    if traces:
+        context = "Validated patterns from past successful executions:\n"
+        for t in traces:
+            context += f"- {t.task_description}: {' → '.join(t.tool_names)}\n"
+        return {"messages": [SystemMessage(content=context)]}
+    return {"messages": []}
+
+# Add to existing graph:
+# graph.add_node("retrieve_memory", retrieve_memory)
+# graph.add_edge(START, "retrieve_memory")
+# graph.add_edge("retrieve_memory", "existing_first_node")
+```
+
+### Method 2: Enhance system prompt (for any agent)
+
+If the agent builds a system prompt string, enhance it before the LLM call:
+
+```python
 from behavioral_memory.memory.token_budget import select_traces_within_budget
 
-traces = select_traces_within_budget(store=store, query=user_query, tool_schemas=schemas)
-prompt = build_prompt(query=user_query, traces=traces, tool_schemas=schemas)
-# Send SYSTEM_PROMPT as system message, prompt as user message to your LLM
+def enhance_prompt(base_prompt: str, user_query: str) -> str:
+    traces = select_traces_within_budget(
+        store=store, query=user_query, tool_schemas=registry.list_tools()
+    )
+    if not traces:
+        return base_prompt
+    section = "\n".join(
+        f"- {t.task_description}: {' → '.join(t.tool_names)}"
+        for t in traces
+    )
+    return f"{base_prompt}\n\n## Validated Patterns:\n{section}"
 ```
+
+### Method 3: Use PlanEngine directly (for plan-first architectures)
+
+```python
+from behavioral_memory import PlanEngine
+
+engine = PlanEngine(llm=your_llm, store=store, registry=registry)
+plan = engine.generate(query="user's task")
+# plan.steps contains the recommended tool chain
+```
+
+---
 
 ## Configuration (env vars / .env)
 
-| Variable | Default | Purpose |
+| Variable | Default | Path |
 |---|---|---|
-| `FEW_SHOT_K` | `3` | Traces to retrieve per query |
-| `MAX_PROMPT_TOKENS` | `3500` | Token budget for prompt |
-| `SIMILARITY_DEDUP_THRESHOLD` | `0.95` | Reject traces above this cosine similarity |
-| `SANDBOX_TIMEOUT_SECONDS` | `30` | Gatekeeper sandbox timeout |
-| `VECTOR_STORE_URL` | — | PostgreSQL connection string |
-| `VECTOR_STORE_COLLECTION` | `validated_traces` | pgvector collection name |
-| `LANGFUSE_SECRET_KEY` | — | For feedback polling |
-| `LANGFUSE_PUBLIC_KEY` | — | For feedback polling |
-| `LANGFUSE_HOST` | `https://cloud.langfuse.com` | Langfuse instance URL |
-| `FEEDBACK_SCORE_NAME` | `quality` | Langfuse score name to watch |
-| `FEEDBACK_POSITIVE_THRESHOLD` | `1.0` | Minimum score to accept |
+| `VECTOR_STORE_URL` | — | A, B |
+| `VECTOR_STORE_COLLECTION` | `validated_traces` | A, B |
+| `LANGFUSE_SECRET_KEY` | — | A |
+| `LANGFUSE_PUBLIC_KEY` | — | A |
+| `LANGFUSE_HOST` | `https://cloud.langfuse.com` | A |
+| `FEEDBACK_SCORE_NAME` | `quality` | A |
+| `FEEDBACK_POSITIVE_THRESHOLD` | `1.0` | A |
+| `FEW_SHOT_K` | `3` | All |
+| `MAX_PROMPT_TOKENS` | `3500` | All |
+| `SIMILARITY_DEDUP_THRESHOLD` | `0.95` | All |
+| `SANDBOX_TIMEOUT_SECONDS` | `30` | All |
+
+---
 
 ## Common mistakes
 
 1. **Forgetting to register tools** — `GatekeeperPipeline` rejects traces
-   referencing unknown tools. Register all tools BEFORE submitting traces.
+   referencing unknown tools. Register ALL tools BEFORE submitting traces.
 2. **Using TraceStore without `[postgres]`** — causes `ImportError`. Use
-   `InMemoryTraceStore` for dev or install the extra.
+   `InMemoryTraceStore` for Path C or install the extra.
 3. **Langfuse score name mismatch** — if your agent sends
-   `name="user_feedback_positive"` but settings say `feedback_score_name="quality"`,
-   the poller finds nothing. These must match.
-4. **pgvector distance vs similarity** — `TraceStore.similarity_score()` already
-   converts cosine distance to similarity (1 - distance). The 0.95 dedup threshold
-   works correctly out of the box.
+   `name="user_feedback"` but settings say `feedback_score_name="quality"`,
+   the poller finds nothing. These MUST match exactly.
+4. **Re-seeding on every deploy** — for Path A/B, check `store.count() == 0`
+   first. The collection persists. Dedup catches accidental duplicates but
+   checking count is cleaner.
 
-## For detailed integration examples
-
-See [integration-examples.md](integration-examples.md) for:
-- LangGraph ReAct agent integration
-- FastAPI feedback endpoint wiring
-- Multi-agent system setup
-- Bootstrap script usage
-
-## Bootstrap script
-
-Run the bootstrap script to validate your setup:
+## Verification
 
 ```bash
 python .cursor/skills/behavioral-memory/scripts/verify_setup.py
 ```
 
-This checks: import works, store initializes, add/search cycle passes,
-gatekeeper accepts valid traces, and optionally tests Langfuse connectivity.
+## Detailed examples
+
+See [integration-examples.md](integration-examples.md) for full code samples.
