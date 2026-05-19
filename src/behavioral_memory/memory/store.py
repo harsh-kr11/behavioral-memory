@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from langchain_core.documents import Document
 from langchain_core.embeddings import Embeddings
@@ -22,13 +22,16 @@ from behavioral_memory.core.schemas import ExecutionTrace, ToolCall
 
 logger = logging.getLogger(__name__)
 
+_HAS_PGVECTOR = False
 try:
-    from langchain_postgres import PGVector
+    import langchain_postgres  # noqa: F401
 
     _HAS_PGVECTOR = True
 except ImportError:
-    _HAS_PGVECTOR = False
-    PGVector = None  # type: ignore[assignment, misc]
+    pass
+
+if TYPE_CHECKING:
+    from langchain_postgres import PGVector
 
 
 def _check_postgres_deps() -> None:
@@ -36,6 +39,22 @@ def _check_postgres_deps() -> None:
         raise ImportError(
             "TraceStore requires PostgreSQL dependencies. Install them with: pip install behavioral-memory[postgres]"
         )
+
+
+def _create_pgvector(
+    collection_name: str,
+    connection: str,
+    embeddings: Embeddings,
+) -> PGVector:
+    """Deferred import + construction so the module loads without postgres deps."""
+    from langchain_postgres import PGVector
+
+    return PGVector(
+        collection_name=collection_name,
+        connection=connection,
+        embeddings=embeddings,
+        use_jsonb=True,
+    )
 
 
 class TraceStore:
@@ -66,11 +85,10 @@ class TraceStore:
     def vectorstore(self) -> Any:
         if self._vectorstore is None:
             try:
-                self._vectorstore = PGVector(
+                self._vectorstore = _create_pgvector(
                     collection_name=self._collection_name,
                     connection=self._connection_url,
                     embeddings=self._embeddings,
-                    use_jsonb=True,
                 )
             except Exception as e:
                 raise MemoryStoreError(f"Failed to connect to vector store: {e}") from e
