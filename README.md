@@ -285,6 +285,19 @@ A reference LangGraph agent is included at `agent/` for demo purposes.
 
 ---
 
+## Cursor Agent Skill
+
+This repo ships a [Cursor Agent Skill](.cursor/skills/behavioral-memory/) for guided integration. Open this repo in Cursor and type `/behavioral-memory` in the Agent chat to invoke the skill — it walks through store setup, seed traces, feedback loops, Langfuse v4 wiring, and pgvector persistence.
+
+```bash
+# Verify your setup after following the skill
+python .cursor/skills/behavioral-memory/scripts/verify_setup.py
+```
+
+See [integration-examples.md](.cursor/skills/behavioral-memory/integration-examples.md) for LangGraph, FastAPI, and production patterns.
+
+---
+
 ## Development
 
 ```bash
