@@ -28,6 +28,28 @@ from behavioral_memory.tools.registry import ToolRegistry
 logger = logging.getLogger(__name__)
 
 
+def _extract_text(response: Any) -> str:
+    """Extract plain text from an LLM response.
+
+    Handles both plain-string content (older providers) and list-of-blocks
+    content (e.g. langchain-google-genai v4+ returns
+    ``[{"type": "text", "text": "..."}]``).
+    """
+    content = response.content if hasattr(response, "content") else str(response)
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = []
+        for block in content:
+            if isinstance(block, dict) and "text" in block:
+                parts.append(block["text"])
+            elif isinstance(block, str):
+                parts.append(block)
+        if parts:
+            return "\n".join(parts)
+    return str(content)
+
+
 class PlanEngine:
     """Core planning engine — the heart of the executive layer.
 
@@ -85,11 +107,11 @@ class PlanEngine:
 
         try:
             response = self._llm.invoke(messages)
-            raw_output = response.content if hasattr(response, "content") else str(response)
+            raw_output = _extract_text(response)
         except Exception as e:
             raise PlanGenerationError(f"LLM invocation failed: {e}") from e
 
-        steps = postprocess_plan(str(raw_output))
+        steps = postprocess_plan(raw_output)
 
         from behavioral_memory.memory.token_budget import count_tokens
 
@@ -101,7 +123,7 @@ class PlanEngine:
             retrieved_traces=traces,
             schemas_used=schemas,
             token_budget_used=token_budget,
-            raw_llm_output=str(raw_output),
+            raw_llm_output=raw_output,
         )
 
     def generate_zero_shot(self, query: str, tool_schemas: list[ToolSchema]) -> Plan:

@@ -210,29 +210,46 @@ steps = postprocess_plan(raw_output)  # returns list[ToolCall]
 
 ## Key Results
 
-On a 30-task benchmark with 7 MCP tools (Gemini 2.5 Pro, temperature 0):
+### Multi-Model Comparison
 
-| Metric | Zero-Shot | Static Few-Shot | **With Behavioral Memory** |
-|--------|-----------|----------------|---------------------------|
-| Tool Selection (TSA) | 63.3% | 70.0% | **83.3%** |
-| Parameter Validity (PV) | 72.2% | 79.6% | **84.0%** |
-| Plan Correctness (PCR) | 33.3% | 50.0% | **63.3%** |
-| Sequence Accuracy (ESA) | 63.3% | 70.0% | **83.3%** |
+30-task benchmark, 7 MCP tools, temperature 0, embeddings: `gemini-embedding-001`. Behavioral memory improves plan correctness across all three models tested — the gain is consistent regardless of model family or size.
 
-McNemar's test: **p = 0.004** vs zero-shot. Plan correctness nearly doubled.
+| Metric | Strategy | **Gemini 2.5 Pro** | **Gemini 3 Flash Preview** | **Gemini 3.5 Flash** |
+|--------|----------|----------------|------------------------|------------------|
+| Tool Selection (TSA) | Zero-Shot | 63.3% | 60.0% | 73.3% |
+| | Static Few-Shot | 70.0% | 80.0% | 76.7% |
+| | **Dynamic (Proposed)** | **93.3%** | **76.7%** | **83.3%** |
+| Parameter Validity (PV) | Zero-Shot | 60.6% | 70.2% | 71.1% |
+| | Static Few-Shot | 68.9% | 77.2% | 74.7% |
+| | **Dynamic (Proposed)** | **85.5%** | **74.6%** | **80.9%** |
+| Plan Correctness (PCR) | Zero-Shot | 50.0% | 50.0% | 60.0% |
+| | Static Few-Shot | 63.3% | 73.3% | 70.0% |
+| | **Dynamic (Proposed)** | **80.0%** | **76.7%** | **80.0%** |
+| Sequence Accuracy (ESA) | Zero-Shot | 63.3% | 60.0% | 73.3% |
+| | Static Few-Shot | 70.0% | 80.0% | 76.7% |
+| | **Dynamic (Proposed)** | **93.3%** | **76.7%** | **83.3%** |
+
+**McNemar's test (Zero-Shot vs Dynamic):**
+
+| Model | p-value | Significant? |
+|-------|---------|-------------|
+| Gemini 2.5 Pro | p = 0.0225 | Yes |
+| Gemini 3 Flash Preview | p = 0.0215 | Yes |
+| Gemini 3.5 Flash | p = 0.0703 | No |
+
+Dynamic retrieval reaches **76.7–80.0% PCR** across all models. The improvement is statistically significant (p < 0.05) for two of three models; Gemini 3.5 Flash starts with a higher zero-shot baseline (60.0%), narrowing the gap.
 
 <details>
-<summary>Reproduced live run (May 2026)</summary>
+<summary>Original paper results (Gemini 2.5 Pro, single-model)</summary>
 
-| Metric | Paper | Live Run (pgvector) |
-|--------|-------|---------------------|
-| TSA | 83.3% | 86.7% |
-| PV | 84.0% | 82.2% |
-| PCR | 63.3% | 80.0% |
-| ESA | 83.3% | 86.7% |
-| McNemar p | 0.004 | 0.039 |
+| Metric | Zero-Shot | Static Few-Shot | With Behavioral Memory |
+|--------|-----------|----------------|------------------------|
+| TSA | 63.3% | 70.0% | 83.3% |
+| PV | 72.2% | 79.6% | 84.0% |
+| PCR | 33.3% | 50.0% | 63.3% |
+| ESA | 63.3% | 70.0% | 83.3% |
 
-All results within 95% bootstrap confidence intervals.
+McNemar's test: p = 0.004 vs zero-shot.
 
 </details>
 
@@ -263,11 +280,17 @@ cd behavioral-memory
 pip install -e ".[agent,eval]"
 export GOOGLE_API_KEY=your-key
 
-# Run the 30-task benchmark
+# Run the 30-task benchmark (default: gemini-2.5-pro)
 python examples/run_live_benchmark.py
 
 # Quick test (5 tasks)
 python examples/run_live_benchmark.py --limit 5
+
+# Multi-model comparison
+python examples/run_live_benchmark.py --model gemini-2.5-pro --output results_25pro.json
+python examples/run_live_benchmark.py --model gemini-3-flash-preview --output results_3flash.json
+python examples/run_live_benchmark.py --model gemini-3.5-flash --output results_35flash.json
+python examples/compare_models.py --results results_25pro.json results_3flash.json results_35flash.json --markdown
 
 # Exact paper reproduction (with pgvector)
 pip install -e ".[postgres]"

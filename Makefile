@@ -1,4 +1,4 @@
-.PHONY: help install dev lint format typecheck test test-unit test-e2e demo benchmark benchmark-pg validate clean
+.PHONY: help install dev lint format typecheck test test-unit test-e2e demo benchmark benchmark-pg benchmark-multi validate clean
 
 help:  ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
@@ -36,6 +36,12 @@ benchmark:  ## Run live benchmark with in-memory store (requires GOOGLE_API_KEY)
 
 benchmark-pg:  ## Run live benchmark with pgvector (requires GOOGLE_API_KEY + PostgreSQL)
 	uv run python examples/run_live_benchmark.py --postgres
+
+benchmark-multi:  ## Run multi-model benchmark comparison (requires GOOGLE_API_KEY)
+	uv run python examples/run_live_benchmark.py --model gemini-2.5-pro --output results_25pro.json
+	uv run python examples/run_live_benchmark.py --model gemini-3-flash-preview --output results_3flash.json
+	uv run python examples/run_live_benchmark.py --model gemini-3.5-flash --output results_35flash.json
+	uv run python examples/compare_models.py --results results_25pro.json results_3flash.json results_35flash.json --markdown
 
 ablation:  ## Run gatekeeper ablation study
 	uv run python examples/gatekeeper_ablation.py --verbose
