@@ -215,20 +215,33 @@ def _find_relevant_traces(query: str, traces: list[ExecutionTrace], top_k: int =
 
 
 def _print_paper_results_table() -> None:
-    """Print the paper's published results for reference."""
-    table = Table(title="Paper Results — 30-Task Benchmark (Gemini 2.5 Pro)")
+    """Print multi-model benchmark results (Dynamic Retrieval / Proposed)."""
+    table = Table(title="Benchmark — Dynamic Retrieval (Proposed) across Models")
     table.add_column("Metric", style="bold")
-    table.add_column("Zero-Shot", justify="right")
-    table.add_column("Static Few-Shot", justify="right")
-    table.add_column("Dynamic Retrieval", justify="right", style="bold green")
+    table.add_column("Gemini 2.5 Pro", justify="right")
+    table.add_column("Gemini 3 Flash", justify="right")
+    table.add_column("Gemini 3.5 Flash", justify="right")
 
-    table.add_row("Tool Selection (TSA)", "63.3%", "70.0%", "83.3%")
-    table.add_row("Parameter Validity (PV)", "72.2%", "79.6%", "84.0%")
-    table.add_row("Plan Correctness (PCR)", "33.3%", "50.0%", "63.3%")
-    table.add_row("Sequence Accuracy (ESA)", "63.3%", "70.0%", "83.3%")
-    table.add_row("McNemar p-value vs ZS", "—", "—", "p = 0.004")
+    table.add_row("Tool Selection (TSA)", "93.3%", "76.7%", "83.3%")
+    table.add_row("Parameter Validity (PV)", "85.5%", "74.6%", "80.9%")
+    table.add_row("Plan Correctness (PCR)", "80.0%", "76.7%", "80.0%")
+    table.add_row("Sequence Accuracy (ESA)", "93.3%", "76.7%", "83.3%")
+    table.add_row("McNemar p vs Zero-Shot", "p = 0.023", "p = 0.022", "p = 0.070")
 
     console.print(table)
+
+    zs_table = Table(title="Zero-Shot Baseline (for comparison)")
+    zs_table.add_column("Metric", style="bold")
+    zs_table.add_column("Gemini 2.5 Pro", justify="right")
+    zs_table.add_column("Gemini 3 Flash", justify="right")
+    zs_table.add_column("Gemini 3.5 Flash", justify="right")
+
+    zs_table.add_row("TSA", "63.3%", "60.0%", "73.3%")
+    zs_table.add_row("PV", "60.6%", "70.2%", "71.1%")
+    zs_table.add_row("PCR", "50.0%", "50.0%", "60.0%")
+    zs_table.add_row("ESA", "63.3%", "60.0%", "73.3%")
+
+    console.print(zs_table)
 
 
 # --- Memory commands ---
