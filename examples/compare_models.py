@@ -141,10 +141,7 @@ def generate_markdown(all_results: list[dict]) -> str:
     models = [r["model"] for r in all_results]
     n = all_results[0]["n_tasks"]
 
-    lines.append(
-        f"On a {n}-task benchmark with 7 MCP tools (temperature 0, "
-        f"embeddings: `gemini-embedding-001`):"
-    )
+    lines.append(f"On a {n}-task benchmark with 7 MCP tools (temperature 0, embeddings: `gemini-embedding-001`):")
     lines.append("")
 
     header = "| Metric | Strategy | " + " | ".join(f"**{m}**" for m in models) + " |"
