@@ -1,4 +1,4 @@
-.PHONY: help install dev lint format typecheck test test-unit test-e2e demo benchmark benchmark-pg benchmark-multi validate clean
+.PHONY: help install dev lint format typecheck test test-unit test-e2e demo showcase benchmark benchmark-pg benchmark-multi validate clean
 
 help:  ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
@@ -30,6 +30,9 @@ test-e2e:  ## Run end-to-end tests only
 
 demo:  ## Run offline demo (no API keys needed)
 	uv run behavioral-memory demo
+
+showcase:  ## Run unified demo showcase for talks (requires GOOGLE_API_KEY)
+	uv run python demo/showcase.py
 
 benchmark:  ## Run live benchmark with in-memory store (requires GOOGLE_API_KEY)
 	uv run python examples/run_live_benchmark.py
